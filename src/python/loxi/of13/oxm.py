@@ -6411,4 +6411,215 @@ class vlan_vid_masked(oxm):
 
 oxm.subtypes[2147486980] = vlan_vid_masked
 
+class mpls_tp_allow_vlan_translation(oxm):
+    type_len = 0xffff3005
+    experimenter_id = 0x00001018
+
+    def __init__(self, value=None, value_mask=None):
+        if value != None:
+            self.value = value
+        else:
+            self.value = 0
+        if value_mask != None:
+            self.value_mask = value_mask
+        else:
+            self.value_mask = 0
+        return
+
+    def pack(self):
+        packed = []
+        packed.append(struct.pack("!L", self.type_len))
+        packed.append(struct.pack("!L", self.experimenter_id))
+        packed.append(struct.pack("!H", self.value))
+        packed.append(struct.pack("!H", self.value_mask))
+        return ''.join(packed)
+
+    @staticmethod
+    def unpack(reader):
+        obj = mpls_tp_allow_vlan_translation()
+        _type_len = reader.read("!L")[0]
+        assert(_type_len == 0xffff3005)
+        _experimenter_id = reader.read("!L")[0]
+        assert(_experimenter_id == 0x00001018)
+        obj.value = reader.read("!H")[0]
+        obj.value_mask = reader.read("!H")[0]
+        return obj
+
+    def __eq__(self, other):
+        if type(self) != type(other): return False
+        if self.value != other.value: return False
+        if self.value_mask != other.value_mask: return False
+        return True
+
+    def pretty_print(self, q):
+        q.text("mpls_tp_allow_vlan_translation {")
+        with q.group():
+            with q.indent(2):
+                q.breakable()
+                q.text("value = ");
+                q.text("%#x" % self.value)
+                q.text(","); q.breakable()
+                q.text("value_mask = ");
+                q.text("%#x" % self.value_mask)
+            q.breakable()
+        q.text('}')
+
+oxm.subtypes[0xffff3005] = mpls_tp_allow_vlan_translation
+
+class mpls_tp_mpls_l2_port(oxm):
+    type_len = 0xffff1008
+    experimenter_id = 0x00001018
+
+    def __init__(self, value=None, value_mask=None):
+        if value != None:
+            self.value = value
+        else:
+            self.value = 0
+        if value_mask != None:
+            self.value_mask = value_mask
+        else:
+            self.value_mask = 0
+        return
+
+    def pack(self):
+        packed = []
+        packed.append(struct.pack("!L", self.type_len))
+        packed.append(struct.pack("!L", self.experimenter_id))
+        packed.append(struct.pack("!L", self.value))
+        packed.append(struct.pack("!L", self.value_mask))
+        return ''.join(packed)
+
+    @staticmethod
+    def unpack(reader):
+        obj = mpls_tp_mpls_l2_port()
+        _type_len = reader.read("!L")[0]
+        assert(_type_len == 0xffff1008)
+        _experimenter_id = reader.read("!L")[0]
+        assert(_experimenter_id == 0x00001018)
+        obj.value = reader.read("!L")[0]
+        obj.value_mask = reader.read("!L")[0]
+        return obj
+
+    def __eq__(self, other):
+        if type(self) != type(other): return False
+        if self.value != other.value: return False
+        if self.value_mask != other.value_mask: return False
+        return True
+
+    def pretty_print(self, q):
+        q.text("mpls_tp_mpls_l2_port {")
+        with q.group():
+            with q.indent(2):
+                q.breakable()
+                q.text("value = ");
+                q.text("%#x" % self.value)
+                q.text(","); q.breakable()
+                q.text("value_mask = ");
+                q.text("%#x" % self.value_mask)
+            q.breakable()
+        q.text('}')
+
+oxm.subtypes[0xffff1008] = mpls_tp_mpls_l2_port
+
+class mpls_tp_mpls_type(oxm):
+    type_len = 0xffff2e06
+    experimenter_id = 0x00001018
+
+    def __init__(self, value=None):
+        if value != None:
+            self.value = value
+        else:
+            self.value = 0
+
+        return
+
+    def pack(self):
+        packed = []
+        packed.append(struct.pack("!L", self.type_len))
+        packed.append(struct.pack("!L", self.experimenter_id))
+        packed.append(struct.pack("!H", self.value))
+        return ''.join(packed)
+
+    @staticmethod
+    def unpack(reader):
+        obj = mpls_tp_mpls_type()
+        _type_len = reader.read("!L")[0]
+        assert(_type_len == 0xffff2e06)
+        _experimenter_id = reader.read("!L")[0]
+        assert(_experimenter_id == 0x00001018)
+        obj.value = reader.read("!H")[0]
+
+        return obj
+
+    def __eq__(self, other):
+        if type(self) != type(other): return False
+        if self.value != other.value: return False
+        if self.value_mask != other.value_mask: return False
+        return True
+
+    def pretty_print(self, q):
+        q.text("mpls_tp_mpls_type {")
+        with q.group():
+            with q.indent(2):
+                q.breakable()
+                q.text("value = ");
+                q.text("%#x" % self.value)
+                q.text(","); q.breakable()
+                q.text("value_mask = ");
+                q.text("%#x" % self.value_mask)
+            q.breakable()
+        q.text('}')
+
+oxm.subtypes[0xffff2e06] = mpls_tp_mpls_type
+
+class mpls_tp_qos_index(oxm):
+    type_len = 0xffff0a05
+    experimenter_id = 0x00001018
+
+    def __init__(self, value=None):
+        if value != None:
+            self.value = value
+        else:
+            self.value = 0
+
+        return
+
+    def pack(self):
+        packed = []
+        packed.append(struct.pack("!L", self.type_len))
+        packed.append(struct.pack("!L", self.experimenter_id))
+        packed.append(struct.pack("!H", self.value))
+        return ''.join(packed)
+
+    @staticmethod
+    def unpack(reader):
+        obj = mpls_tp_qos_index()
+        _type_len = reader.read("!L")[0]
+        assert(_type_len == 0xffff0a05)
+        _experimenter_id = reader.read("!L")[0]
+        assert(_experimenter_id == 0x00001018)
+        obj.value = reader.read("!H")[0]
+
+        return obj
+
+    def __eq__(self, other):
+        if type(self) != type(other): return False
+        if self.value != other.value: return False
+        if self.value_mask != other.value_mask: return False
+        return True
+
+    def pretty_print(self, q):
+        q.text("mpls_tp_qos_index {")
+        with q.group():
+            with q.indent(2):
+                q.breakable()
+                q.text("value = ");
+                q.text("%#x" % self.value)
+                q.text(","); q.breakable()
+                q.text("value_mask = ");
+                q.text("%#x" % self.value_mask)
+            q.breakable()
+        q.text('}')
+
+oxm.subtypes[0xffff0a05] = mpls_tp_qos_index
 
