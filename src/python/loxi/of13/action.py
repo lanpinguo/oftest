@@ -84,7 +84,9 @@ class experimenter(action):
         packed.append(struct.pack("!H", self.type))
         packed.append(struct.pack("!H", 0)) # placeholder for len at index 1
         packed.append(struct.pack("!L", self.experimenter))
-        packed.append(self.data)
+        for b in self.data:
+            packed.append(struct.pack("!B", b))
+        #packed.append(self.data)
         length = sum([len(x) for x in packed])
         packed.append(loxi.generic_util.pad_to(8, length))
         length += len(packed[-1])
@@ -105,7 +107,7 @@ class experimenter(action):
         orig_reader = reader
         reader = orig_reader.slice(_len, 4)
         obj.experimenter = reader.read("!L")[0]
-        obj.data = str(reader.read_all())
+        obj.data = reader.read_all()
         return obj
 
     def __eq__(self, other):
