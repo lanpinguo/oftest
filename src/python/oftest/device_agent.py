@@ -37,6 +37,7 @@ class DeviceAgent(Thread):
             self.max_port = max_port
         self.dpid = dpid
         self.ip = ip
+        self.port_desc = None
         
         # Socket related
         self.rcv_size = RCV_SIZE_DEFAULT

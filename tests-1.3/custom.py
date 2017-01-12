@@ -6,26 +6,39 @@
 '''
 PE1 CONFIG
 '''
-PE1_DPID = 0xe5e512ff90000 
-PE1_UNI_PORT = 3
-PE1_UNI_VLAN = 10
-PE1_LSP_ING_LABEL = 1000
-PE1_LSP_EGR_LABEL = 2000
-PE1_NNI_PORT = 4
-PE1_NNI_VLAN = 100 
-PE1_TUNNEL_ID = 0X10001
-PE1_VPWS_MAX = 2
-PE1_PORT_MAC = [0x00,0x0e,0x5e,0x00,0x00,0x02]
-PE1_DST_MAC = [0x00,0x0e,0x5e,0x00,0x00,0x03]
+PE1_CONFIG = {
+
+    'DPID'          : 0xe5e501c5a0000                  ,
+    'UNI_PORT'      : 3                                ,
+    'UNI_VLAN'      : 10                               ,
+    'LSP_ING_LABEL' : 1000                             ,
+    'LSP_EGR_LABEL' : 2000                             ,
+    'PW_ING_LABEL'  : 10                               ,
+    'PW_EGR_LABEL'  : 20                               ,
+    'NNI_PORT'      : 4                                ,
+    'NNI_VLAN'      : 100                              ,
+    'TUNNEL_ID'     : 0X10001                          ,
+    'VPWS_MAX'      : 2                                ,
+    'PORT_MAC'      : [0x00,0x0e,0x5e,0x00,0x00,0x02]  ,
+    'DST_MAC'       : [0x00,0x0e,0x5e,0x00,0x00,0x03]  ,
+}                                                      
+
 '''
 PE2 CONFIG
 '''
-PE2_DPID = 0xe5e501c5a0000
-PE2_UNI_PORT = 3
-PE2_UNI_VLAN = 10
-PE2_LSP_ING_LABEL = 1000
-PE2_LSP_EGR_LABEL = 2000
-PE2_NNI_PORT = 4
-PE2_NNI_VLAN = 100 
-PE2_TUNNEL_ID = 0X10001
-PE1_VPWS_MAX = 256
+PE2_CONFIG = {
+
+    "DPID"          : 0xe5e512ff90000                  ,
+    "UNI_PORT"      : 3                                ,
+    "UNI_VLAN"      : 10                               ,
+    "LSP_ING_LABEL" : 2000                             ,
+    "LSP_EGR_LABEL" : 1000                             ,
+    "PW_ING_LABEL"  : 20                               ,
+    "PW_EGR_LABEL"  : 10                               ,
+    "NNI_PORT"      : 4                                ,
+    "NNI_VLAN"      : 100                              ,
+    "TUNNEL_ID"     : 0X10001                          ,
+    "VPWS_MAX"      : 2                                ,
+    "PORT_MAC"      : [0x00,0x0e,0x5e,0x00,0x00,0x02]  ,
+    "DST_MAC"       : [0x00,0x0e,0x5e,0x00,0x00,0x03]  ,
+}                                                     

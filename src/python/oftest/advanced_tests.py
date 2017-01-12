@@ -64,7 +64,13 @@ class AdvancedProtocol(AdvancedTest):
                     self.supported_actions = reply.actions
                     logging.info("Supported actions: " + hex(self.supported_actions))
                 d.dpid = reply.datapath_id
-                print(hex(d.dpid))    
+                
+                
+                request = ofp.message.port_desc_stats_request()
+                reply, pkt = d.transact(request)
+                d.port_desc = reply.entries
+                #print(reply.entries[0].hw_addr)
+
                 
         except:
             self.controller.kill()
