@@ -6623,3 +6623,284 @@ class mpls_tp_qos_index(oxm):
 
 oxm.subtypes[0xffff0a05] = mpls_tp_qos_index
 
+class mpls_tp_mp_id(oxm):
+    type_len = 0xffff0c08
+    experimenter_id = 0x00001018
+
+    def __init__(self, value=None):
+        if value != None:
+            self.value = value
+        else:
+            self.value = 0
+
+        return
+
+    def pack(self):
+        packed = []
+        packed.append(struct.pack("!L", self.type_len))
+        packed.append(struct.pack("!L", self.experimenter_id))
+        packed.append(struct.pack("!L", self.value))
+        return ''.join(packed)
+
+    @staticmethod
+    def unpack(reader):
+        obj = mpls_tp_mp_id()
+        _type_len = reader.read("!L")[0]
+        assert(_type_len == 0xffff0c08)
+        _experimenter_id = reader.read("!L")[0]
+        assert(_experimenter_id == 0x00001018)
+        obj.value = reader.read("!L")[0]
+
+        return obj
+
+    def __eq__(self, other):
+        if type(self) != type(other): return False
+        if self.value != other.value: return False
+        return True
+
+    def pretty_print(self, q):
+        q.text("mpls_tp_mp_id {")
+        with q.group():
+            with q.indent(2):
+                q.breakable()
+                q.text("value = ");
+                q.text("%#x" % self.value)
+            q.breakable()
+        q.text('}')
+
+oxm.subtypes[0xffff0c08] = mpls_tp_mp_id
+
+class mpls_tp_oam_y1731_opcode(oxm):
+    type_len = 0xffff1e05
+    experimenter_id = 0x00001018
+
+    def __init__(self, value=None):
+        if value != None:
+            self.value = value
+        else:
+            self.value = 0
+
+        return
+
+    def pack(self):
+        packed = []
+        packed.append(struct.pack("!L", self.type_len))
+        packed.append(struct.pack("!L", self.experimenter_id))
+        packed.append(struct.pack("!B", self.value))
+        return ''.join(packed)
+
+    @staticmethod
+    def unpack(reader):
+        obj = mpls_tp_mp_id()
+        _type_len = reader.read("!L")[0]
+        assert(_type_len == 0xffff1e05)
+        _experimenter_id = reader.read("!L")[0]
+        assert(_experimenter_id == 0x00001018)
+        obj.value = reader.read("!B")[0]
+
+        return obj
+
+    def __eq__(self, other):
+        if type(self) != type(other): return False
+        if self.value != other.value: return False
+        return True
+
+    def pretty_print(self, q):
+        q.text("mpls_tp_oam_y1731_opcode {")
+        with q.group():
+            with q.indent(2):
+                q.breakable()
+                q.text("value = ");
+                q.text("%#x" % self.value)
+            q.breakable()
+        q.text('}')
+
+oxm.subtypes[0xffff1e05] = mpls_tp_oam_y1731_opcode
+
+class mpls_tp_ach_channel(oxm):
+    type_len = 0xffff1806
+    experimenter_id = 0x00001018
+
+    def __init__(self, value=None):
+        if value != None:
+            self.value = value
+        else:
+            self.value = 0
+
+        return
+
+    def pack(self):
+        packed = []
+        packed.append(struct.pack("!L", self.type_len))
+        packed.append(struct.pack("!L", self.experimenter_id))
+        packed.append(struct.pack("!H", self.value))
+        return ''.join(packed)
+
+    @staticmethod
+    def unpack(reader):
+        obj = mpls_tp_ach_channel()
+        _type_len = reader.read("!L")[0]
+        assert(_type_len == 0xffff1806)
+        _experimenter_id = reader.read("!L")[0]
+        assert(_experimenter_id == 0x00001018)
+        obj.value = reader.read("!H")[0]
+
+        return obj
+
+    def __eq__(self, other):
+        if type(self) != type(other): return False
+        if self.value != other.value: return False
+        return True
+
+    def pretty_print(self, q):
+        q.text("mpls_tp_ach_channel {")
+        with q.group():
+            with q.indent(2):
+                q.breakable()
+                q.text("value = ");
+                q.text("%#x" % self.value)
+            q.breakable()
+        q.text('}')
+
+oxm.subtypes[0xffff1806] = mpls_tp_ach_channel
+
+class mpls_tp_data_first_nibble(oxm):
+    type_len = 0xffff1605
+    experimenter_id = 0x00001018
+
+    def __init__(self, value=None):
+        if value != None:
+            self.value = value
+        else:
+            self.value = 0
+
+        return
+
+    def pack(self):
+        packed = []
+        packed.append(struct.pack("!L", self.type_len))
+        packed.append(struct.pack("!L", self.experimenter_id))
+        packed.append(struct.pack("!B", self.value))
+        return ''.join(packed)
+
+    @staticmethod
+    def unpack(reader):
+        obj = mpls_tp_data_first_nibble()
+        _type_len = reader.read("!L")[0]
+        assert(_type_len == 0xffff1605)
+        _experimenter_id = reader.read("!L")[0]
+        assert(_experimenter_id == 0x00001018)
+        obj.value = reader.read("!B")[0]
+
+        return obj
+
+    def __eq__(self, other):
+        if type(self) != type(other): return False
+        if self.value != other.value: return False
+        return True
+
+    def pretty_print(self, q):
+        q.text("mpls_tp_data_first_nibble {")
+        with q.group():
+            with q.indent(2):
+                q.breakable()
+                q.text("value = ");
+                q.text("%#x" % self.value)
+            q.breakable()
+        q.text('}')
+
+oxm.subtypes[0xffff1605] = mpls_tp_data_first_nibble
+
+class mpls_tp_next_label_is_gal(oxm):
+    type_len = 0xffff1a05
+    experimenter_id = 0x00001018
+
+    def __init__(self, value=None):
+        if value != None:
+            self.value = value
+        else:
+            self.value = 0
+
+        return
+
+    def pack(self):
+        packed = []
+        packed.append(struct.pack("!L", self.type_len))
+        packed.append(struct.pack("!L", self.experimenter_id))
+        packed.append(struct.pack("!B", self.value))
+        return ''.join(packed)
+
+    @staticmethod
+    def unpack(reader):
+        obj = mpls_tp_next_label_is_gal()
+        _type_len = reader.read("!L")[0]
+        assert(_type_len == 0xffff1a05)
+        _experimenter_id = reader.read("!L")[0]
+        assert(_experimenter_id == 0x00001018)
+        obj.value = reader.read("!B")[0]
+
+        return obj
+
+    def __eq__(self, other):
+        if type(self) != type(other): return False
+        if self.value != other.value: return False
+        return True
+
+    def pretty_print(self, q):
+        q.text("mpls_tp_next_label_is_gal {")
+        with q.group():
+            with q.indent(2):
+                q.breakable()
+                q.text("value = ");
+                q.text("%#x" % self.value)
+            q.breakable()
+        q.text('}')
+
+oxm.subtypes[0xffff1a05] = mpls_tp_next_label_is_gal
+
+class mpls_tp_ttl(oxm):
+    type_len = 0xffff0e05
+    experimenter_id = 0x00001018
+
+    def __init__(self, value=None):
+        if value != None:
+            self.value = value
+        else:
+            self.value = 0
+
+        return
+
+    def pack(self):
+        packed = []
+        packed.append(struct.pack("!L", self.type_len))
+        packed.append(struct.pack("!L", self.experimenter_id))
+        packed.append(struct.pack("!B", self.value))
+        return ''.join(packed)
+
+    @staticmethod
+    def unpack(reader):
+        obj = mpls_tp_ttl()
+        _type_len = reader.read("!L")[0]
+        assert(_type_len == 0xffff0e05)
+        _experimenter_id = reader.read("!L")[0]
+        assert(_experimenter_id == 0x00001018)
+        obj.value = reader.read("!B")[0]
+
+        return obj
+
+    def __eq__(self, other):
+        if type(self) != type(other): return False
+        if self.value != other.value: return False
+        return True
+
+    def pretty_print(self, q):
+        q.text("mpls_tp_ttl {")
+        with q.group():
+            with q.indent(2):
+                q.breakable()
+                q.text("value = ");
+                q.text("%#x" % self.value)
+            q.breakable()
+        q.text('}')
+
+oxm.subtypes[0xffff0e05] = mpls_tp_ttl

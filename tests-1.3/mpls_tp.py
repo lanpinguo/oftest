@@ -1050,7 +1050,135 @@ class vpws_basic_pe():
         
         do_barrier(self.pe)
 
+def add_oam(self,lmepId = 0,obj):
+        
+        ####################################################################################
+        #
+        # Create oam
+        #
+        ####################################################################################        
 
+        '''
+        Add Flow
+        '''
+        '''
+        Add mpls maintenance point table entry
+        '''
+        table_id = ofdpa.OFDPA_FLOW_TABLE_ID_MPLS_MAINTENANCE_POINT
+        match = ofp.match([
+            ofp.oxm.eth_type(value = 0x8902),            
+            ofp.oxm.mpls_tp_mp_id(value = lmepId),
+            ofp.oxm.mpls_tp_oam_y1731_opcode(value = 1),
+        ])
+        
+        '''
+        apply actions 
+        '''
+        apy_actions = [ofp.action.output(port = ofp.OFPP_LOCAL ,max_len = 0xffff) ,
+        ]
+        instructions=[
+            ofp.instruction.clear_actions(),
+            ofp.instruction.write_actions(actions = [ofp.action.group(group_id = id)]),
+            ofp.instruction.apply_actions(actions = apy_actions),
+        ]
+        priority = 1000
+
+        logging.info("Inserting mpls maintenance point flow")
+        request = ofp.message.flow_add(
+                table_id=table_id,
+                match=match,
+                instructions=instructions,
+                buffer_id=ofp.OFP_NO_BUFFER,
+                priority=priority,
+                flags=ofp.OFPFF_SEND_FLOW_REM,
+                cookie=0x1234,
+                hard_timeout=0,
+                idle_timeout=0)
+        self.pe.message_send(request)        
+
+        '''
+        Add mpls 1 table entry
+        '''
+        table_id = ofdpa.OFDPA_FLOW_TABLE_ID_MPLS_1
+        match = ofp.match([
+            ofp.oxm.eth_type(value = 0x8847),            
+            ofp.oxm.mpls_label(value = self.lsp_ing_label),
+            ofp.oxm.mpls_bos(value = 0),
+            ofp.oxm.mpls_tp_ach_channel(value = 0x8902),
+            ofp.oxm.mpls_tp_data_first_nibble(value = 1),
+            ofp.oxm.mpls_tp_next_label_is_gal(value = 1)
+        ])
+        
+        action = [ofp.action.pop_mpls(ethertype = 0x8847),
+            ofp.action.set_field(ofp.oam.mpls_tp_mp_id(value = lmepId)),
+            ofp.action.pop_mpls(ethertype = 0x8902),
+            ofp.action.experimenter(experimenter = 0x1018, data = [0x00,0x04,0x00,0x00,0x00,0x00,0x00,0x00 ]),
+        ]
+        instructions=[
+            ofp.instruction.apply_actions(actions = action),
+            ofp.instruction.goto_table(ofdpa.OFDPA_FLOW_TABLE_ID_MPLS_MAINTENANCE_POINT),
+        ]
+        priority = 1000
+
+        logging.info("Inserting  mpls 1 flow")
+        request = ofp.message.flow_add(
+                table_id=table_id,
+                match=match,
+                instructions=instructions,
+                buffer_id=ofp.OFP_NO_BUFFER,
+                priority=priority,
+                flags=ofp.OFPFF_SEND_FLOW_REM,
+                cookie=0x1234,
+                hard_timeout=0,
+                idle_timeout=0)
+        self.pe.message_send(request)
+
+        '''
+        Add injected oam table entry
+        '''
+        table_id = ofdpa.OFDPA_FLOW_TABLE_ID_INJECTED_OAM
+        match = ofp.match([
+            ofp.oxm.eth_type(value = 0x8902),            
+            ofp.oxm.mpls_tp_mp_id(value = lmepId),
+            ofp.oxm.mpls_tp_oam_y1731_opcode(value = 1),
+        ])
+        
+        aply_action = [ofp.action.push_mpls(ethertype = 0x8847),
+            ofp.action.set_field(ofp.oxm.mpls_label(value = 13)),
+            ofp.action.set_field(ofp.oxm.mpls_bos(value = 1)),
+            ofp.action.set_field(ofp.oxm.mpls_tp_ttl(value = 64)),
+            ofp.action.experimenter(experimenter = 0x1018, data = [0x00,0x03,0x00,0x00,0x00,0x00,0x00,0x00 ]), #push cw
+            ofp.action.set_field(ofp.oxm.mpls_tp_data_first_nibble(value = 1)),
+            ofp.action.set_field(ofp.oxm.mpls_tp_ach_channel(value = 0x8902)),
+            ofp.action.push_mpls(ethertype = 0x8847),
+            ofp.action.set_field(ofp.oxm.mpls_label(value = self.lsp_egr_label)),
+            ofp.action.set_field(ofp.oxm.mpls_tp_ttl(value = 64)),          
+            ofp.action.set_field(ofp.oxm.vlan_pcp(value = 1)),            
+        ]
+        
+        write_action = [ ofp.action.group(group_id = self.mpls_interface_group_id),            
+        ]
+        instructions=[
+            ofp.instruction.apply_actions(actions = aply_action),
+            ofp.instruction.write_actions(actions = write_action),
+        ]
+        priority = 1000
+
+        logging.info("Inserting injected oam table flow")
+        request = ofp.message.flow_add(
+                table_id=table_id,
+                match=match,
+                instructions=instructions,
+                buffer_id=ofp.OFP_NO_BUFFER,
+                priority=priority,
+                flags=ofp.OFPFF_SEND_FLOW_REM,
+                cookie=0x1234,
+                hard_timeout=0,
+                idle_timeout=0)
+        self.pe.message_send(request)
+        
+        do_barrier(self.pe)       
+        
 
 class Scenario_VpwsBasic(advanced_tests.AdvancedProtocol):
     """
@@ -1075,4 +1203,27 @@ class Scenario_VpwsBasic(advanced_tests.AdvancedProtocol):
         (mpls_tunnel_group_pe2, tunnel_index_pe1) = pe2.create_new_lsp()
         pe2.create_new_pw(mpls_tunnel_group_pe2[tunnel_index_pe1])        
         
-            
+class Scenario_VpwsLspProtection(advanced_tests.AdvancedProtocol):
+    """
+    Verify that creating a  vpws
+    """
+
+    def runTest(self):
+        pe1 = None
+        pe2 = None 
+        
+        for d in self.controller.device_agents:
+            if d.dpid == custom.PE1_CONFIG['DPID']: 
+                pe1 = vpws_basic_pe(d,config = custom.PE1_CONFIG)
+            elif d.dpid == custom.PE2_CONFIG["DPID"]:
+                pe2 = vpws_basic_pe(d,config = custom.PE2_CONFIG)  
+  
+        pe1.dst_mac = pe2.port[pe2.nni_port].hw_addr
+        (mpls_tunnel_group_pe1, tunnel_index_pe1) = pe1.create_new_lsp()
+        pe1.create_new_pw(mpls_tunnel_group_pe1[tunnel_index_pe1])
+
+        pe2.dst_mac = pe1.port[pe1.nni_port].hw_addr
+        (mpls_tunnel_group_pe2, tunnel_index_pe1) = pe2.create_new_lsp()
+        pe2.create_new_pw(mpls_tunnel_group_pe2[tunnel_index_pe1])        
+        
+                        
