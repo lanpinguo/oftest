@@ -57,6 +57,7 @@ class AdvancedProtocol(AdvancedTest):
                 
             for d in self.controller.device_agents:
                 logging.info("Connected " + str(d.switch_addr))
+                logging.info("netconf will create at " + str(d.switch_addr[0]))
                 request = ofp.message.features_request()
                 reply, pkt = d.transact(request)
                 self.assertTrue(reply is not None,
@@ -65,7 +66,7 @@ class AdvancedProtocol(AdvancedTest):
                     self.supported_actions = reply.actions
                     logging.info("Supported actions: " + hex(self.supported_actions))
                 d.dpid = reply.datapath_id
-                d.netconf = netconf.Netconf(switch_addr = d.switch_addr)
+                d.netconf = netconf.Netconf(switch_addr = d.switch_addr[0])
                 
                 
                 request = ofp.message.port_desc_stats_request()

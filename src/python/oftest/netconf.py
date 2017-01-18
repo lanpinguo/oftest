@@ -56,9 +56,10 @@ class Netconf():
         self.CONNECTED = False
         self.CONFIG_OK = False
         self.AVAILABLE = False
-
+        self.switch_addr = switch_addr
         self.child = pexpect.spawn('netopeer-cli')
-        self.child.logfile = file('/work/mylog.txt','w')
+        logfile = 'netconf-'+ str(switch_addr) + '.log'
+        self.child.logfile = file(logfile,'w')
         (rc , before , after) = self.wait_cmd(expects = ['netconf>'])
         if rc == 0 :
             self.AVAILABLE = True
@@ -75,7 +76,7 @@ class Netconf():
         
     def connect(self):
         if self.AVAILABLE:
-            netconf_cmd = "connect --login raisecom " + "192.168.1.11 "
+            netconf_cmd = "connect --login raisecom " + str(self.switch_addr)
             self.child.sendline(s = netconf_cmd)
             (rc , before , after) = self.wait_cmd(expects = ['netconf>','yes/no','failed.','password:'])
             if rc == 1:

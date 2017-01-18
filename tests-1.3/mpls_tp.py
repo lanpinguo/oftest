@@ -1237,13 +1237,17 @@ class Scenario_VpwsLspProtection(advanced_tests.AdvancedProtocol):
         
         rc = pe1.add_oam(lmepId = 10)
         if rc != 0:
-            print('add oam fail')
+            print('pe 1 add oam fail')
         
 
         pe2.dst_mac = pe1.port[pe1.nni_port].hw_addr
         (mpls_tunnel_group_pe2, tunnel_index_pe1) = pe2.create_new_lsp()
         pe2.create_new_pw(mpls_tunnel_group_pe2[tunnel_index_pe1])        
 
+        rc = pe2.add_oam(lmepId = 10)
+        if rc != 0:
+            print('pe 2 add oam fail')
+        
         active = True
         while active:
             cmd = raw_input('cmd: ')
