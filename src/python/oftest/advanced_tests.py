@@ -13,6 +13,7 @@ import oftest
 from oftest import config
 import oftest.controller_mc as controller
 import oftest.dataplane as dataplane
+import oftest.netconf as netconf
 import ofp
 
 class AdvancedTest(unittest.TestCase):
@@ -64,6 +65,7 @@ class AdvancedProtocol(AdvancedTest):
                     self.supported_actions = reply.actions
                     logging.info("Supported actions: " + hex(self.supported_actions))
                 d.dpid = reply.datapath_id
+                d.netconf = netconf.Netconf(switch_addr = d.switch_addr)
                 
                 
                 request = ofp.message.port_desc_stats_request()

@@ -756,6 +756,7 @@ class vpws_basic_pe():
         id = ofdb_group_type_set(id,ofdpa.OFDPA_GROUP_ENTRY_TYPE_MPLS_LABEL)
         id = ofdb_group_mpls_index_set(id , self.mpls_interface_index)
         id = ofdb_group_mpls_subtype_set(id , ofdpa.OFDPA_MPLS_INTERFACE)
+        self.mpls_interface_group_id = id
         action_list = [ofp.action.group(group_id = ref_group) ,
                        ofp.action.set_field(ofp.oxm.eth_src(value = self.port_mac)) ,
                        ofp.action.set_field(ofp.oxm.eth_dst(value = self.dst_mac)) ,
@@ -1050,7 +1051,7 @@ class vpws_basic_pe():
         
         do_barrier(self.pe)
 
-def add_oam(self,lmepId = 0,obj):
+    def add_oam(self,lmepId = 0):
         
         ####################################################################################
         #
@@ -1058,6 +1059,18 @@ def add_oam(self,lmepId = 0,obj):
         #
         ####################################################################################        
 
+        '''
+        Todo netconf config here
+        '''
+        (rc , info) = self.pe.netconf.connect()
+        if rc != 0:
+            print(info)
+            return -1
+        (rc , info) = self.pe.netconf.config()
+        if rc != 0:
+            print(info)
+            return -1
+            
         '''
         Add Flow
         '''
@@ -1077,8 +1090,7 @@ def add_oam(self,lmepId = 0,obj):
         apy_actions = [ofp.action.output(port = ofp.OFPP_LOCAL ,max_len = 0xffff) ,
         ]
         instructions=[
-            ofp.instruction.clear_actions(),
-            ofp.instruction.write_actions(actions = [ofp.action.group(group_id = id)]),
+            #ofp.instruction.clear_actions(),
             ofp.instruction.apply_actions(actions = apy_actions),
         ]
         priority = 1000
@@ -1110,7 +1122,7 @@ def add_oam(self,lmepId = 0,obj):
         ])
         
         action = [ofp.action.pop_mpls(ethertype = 0x8847),
-            ofp.action.set_field(ofp.oam.mpls_tp_mp_id(value = lmepId)),
+            ofp.action.set_field(ofp.oxm.mpls_tp_mp_id(value = lmepId)),
             ofp.action.pop_mpls(ethertype = 0x8902),
             ofp.action.experimenter(experimenter = 0x1018, data = [0x00,0x04,0x00,0x00,0x00,0x00,0x00,0x00 ]),
         ]
@@ -1177,7 +1189,8 @@ def add_oam(self,lmepId = 0,obj):
                 idle_timeout=0)
         self.pe.message_send(request)
         
-        do_barrier(self.pe)       
+        do_barrier(self.pe)  
+        return 0
         
 
 class Scenario_VpwsBasic(advanced_tests.AdvancedProtocol):
@@ -1191,9 +1204,9 @@ class Scenario_VpwsBasic(advanced_tests.AdvancedProtocol):
         
         for d in self.controller.device_agents:
             if d.dpid == custom.PE1_CONFIG['DPID']: 
-                pe1 = vpws_basic_pe(d,config = custom.PE1_CONFIG)
+                pe1 = vpws_basic_pe(dev_agt = d,config = custom.PE1_CONFIG)
             elif d.dpid == custom.PE2_CONFIG["DPID"]:
-                pe2 = vpws_basic_pe(d,config = custom.PE2_CONFIG)  
+                pe2 = vpws_basic_pe(dev_agt = d,config = custom.PE2_CONFIG)  
   
         pe1.dst_mac = pe2.port[pe2.nni_port].hw_addr
         (mpls_tunnel_group_pe1, tunnel_index_pe1) = pe1.create_new_lsp()
@@ -1221,9 +1234,22 @@ class Scenario_VpwsLspProtection(advanced_tests.AdvancedProtocol):
         pe1.dst_mac = pe2.port[pe2.nni_port].hw_addr
         (mpls_tunnel_group_pe1, tunnel_index_pe1) = pe1.create_new_lsp()
         pe1.create_new_pw(mpls_tunnel_group_pe1[tunnel_index_pe1])
+        
+        rc = pe1.add_oam(lmepId = 10)
+        if rc != 0:
+            print('add oam fail')
+        
 
         pe2.dst_mac = pe1.port[pe1.nni_port].hw_addr
         (mpls_tunnel_group_pe2, tunnel_index_pe1) = pe2.create_new_lsp()
         pe2.create_new_pw(mpls_tunnel_group_pe2[tunnel_index_pe1])        
-        
+
+        active = True
+        while active:
+            cmd = raw_input('cmd: ')
+            print(cmd)
+            if cmd == 'config':
+                pass
+            elif cmd == 'exit':
+                active = False
                         
