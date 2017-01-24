@@ -96,4 +96,17 @@ OFDPA_MPLS_TUNNEL_LABEL1   = 3
 OFDPA_MPLS_TUNNEL_LABEL2   = 4
 OFDPA_MPLS_SWAP_LABEL      = 5
 
+"""
+MPLS Forwarding Group Sub-type Enumerator 
+"""
+OFDPA_MPLS_L2_FLOOD                   = 0 
+OFDPA_MPLS_L2_MULTICAST               = 1 
+OFDPA_MPLS_L2_LOCAL_FLOOD             = 2 
+OFDPA_MPLS_L2_LOCAL_MULTICAST         = 3 
+OFDPA_MPLS_L2_FLOOD_SPLIT_HORIZON     = 4 
+OFDPA_MPLS_L2_MULTICAST_SPLIT_HORIZON = 5 
+OFDPA_MPLS_FAST_FAILOVER              = 6 
+OFDPA_MPLS_1_1_HEAD_END_PROTECT       = 7 
+OFDPA_MPLS_ECMP                       = 8 
+OFDPA_MPLS_L2_TAG                     = 10
 

@@ -43,10 +43,11 @@ from threading import Thread
 from threading import Lock
 from threading import Condition
 
-
-
-
-        
+try :
+    import xml.etree.cElementTree as ET
+except ImportError:
+    import xml.etree.ElementTree as ET
+      
         
 class Netconf():
     """
@@ -78,7 +79,7 @@ class Netconf():
         if self.AVAILABLE:
             netconf_cmd = "connect --login raisecom " + str(self.switch_addr)
             self.child.sendline(s = netconf_cmd)
-            (rc , before , after) = self.wait_cmd(expects = ['netconf>','yes/no','failed.','password:'])
+            (rc , before , after) = self.wait_cmd(expects = ['netconf>','yes/no','failed.','password:','connect:'])
             if rc == 1:
                 self.child.sendline(s = "yes")
                 (rc , before , after) = self.wait_cmd( expects = ['netconf>','password:'])
@@ -101,6 +102,12 @@ class Netconf():
                     #print(self.child.before)
                     #print("connect sucessfully")
                     return (0,'connect sucessfully')
+            elif rc == 4:
+                if after.find('already connected'):
+                    self.CONNECTED = True
+                    #print(self.child.before)
+                    #print("connect sucessfully")
+                    return (0,'connect sucessfully')
             else :
                 #print("connect failed")
                 #print(self.child.before)
@@ -110,14 +117,13 @@ class Netconf():
 
 
 
-    def config(self):
+    def config(self,file):
         """
         config function for class
         """
 
         if self.CONNECTED == True:
-            netconf_cmd = 'edit-config --config=' + \
-            '/work/cmcc_support/ofconfig/pe1-create_tpoam1.xml' + ' candidate'
+            netconf_cmd = 'edit-config --config=' + file + ' candidate'
             self.child.sendline(s = netconf_cmd)
             (rc , before , after) = self.wait_cmd(expects = ['netconf>'])
             if rc == 0 :
@@ -145,7 +151,142 @@ class Netconf():
             return (-1 , "connection is not created")
 
 
+class MEG():
+    """
+    meg root class
+    """
+    def __init__(self,megIndex,megName,lmepid,rmepid):
+        self.megIndex = megIndex
+        self.megName = megName
+        self.lmepid = lmepid
+        self.rmepid = rmepid 
+        try:
+            tree = ET.parse("/work/cmcc_support/ofconfig/create_tpoam_template.xml")
+            root = tree.getroot()
+        except Exception, e:
+            print("Error:cannot parse file:create_tpoam_template.xml")
+            sys.exit(1)
+        self.fileName = '/work/cmcc_support/ofconfig/tmp/tpoam' + self.megName + '.xml'    
+        for res in root.findall('{urn:onf:config:yang}resources'):
+            g8131_meg = res.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}G.8113.1_MEG')
+            resource_id = g8131_meg.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}resource-id') 
+            resource_id.text = str('mpls_meg_'+str(self.megIndex))
+            index = g8131_meg.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}index')
+            index.text = str(self.megIndex)
+            name = g8131_meg.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}name')
+            name.text = self.megName
+            
+            
+            Local_MEP = g8131_meg.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}Local_MEP')
+            openFlowMpId = Local_MEP.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}openFlowMpId')
+            openFlowMpId.text = str(self.lmepid)
+            mepId = Local_MEP.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}mepId')
+            mepId.text = str(self.lmepid)
+            
+            
+            Remote_MEP = g8131_meg.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}Remote_MEP')
+            openFlowMpId = Remote_MEP.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}openFlowMpId')
+            openFlowMpId.text = str(self.rmepid)
+            mepId = Remote_MEP.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}mepId')
+            mepId.text = str(self.rmepid)
+        tree.write(self.fileName)    
+    def getFileName(self):
+        return self.fileName
 
+class MLP_HEAD_END():
+    def __init__(self,mepId,liveness_port,dir = None,role = None):
+        self.mepId = mepId
+        self.liveness_port = liveness_port
+        self.dir = dir
+        self.role = role     
+class MLP():
+    """
+    mlp root class
+    """
+    def __init__(self,mlpIndex,mlpName,mlpHeadEnds):
+        self.mlpIndex = mlpIndex
+        self.mlpName = mlpName
+        self.mlpHeadEnds = mlpHeadEnds
 
+        try:
+            tree = ET.parse("/work/cmcc_support/ofconfig/create_protection_template.xml")
+            root = tree.getroot()
+        except Exception, e:
+            print("Error:cannot parse file:create_protection_template.xml")
+            sys.exit(1)
+        self.fileName = '/work/cmcc_support/ofconfig/tmp/tpoam_' + self.mlpName + '.xml'    
+        for res in root.findall('{urn:onf:config:yang}resources'):
+            MLP_ProtectionGroup = res.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}MLP_ProtectionGroup')
+            resource_id = MLP_ProtectionGroup.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}resource-id') 
+            resource_id.text = str('protection_group_'+str(self.mlpIndex))
+            index = MLP_ProtectionGroup.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}index')
+            index.text = str(self.mlpIndex)
+            name = MLP_ProtectionGroup.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}name')
+            name.text = self.mlpName
+            
+            
+            mlpHeadEnd = MLP_ProtectionGroup.findall('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}mlp-head-end-config')
+            liveness_port = mlpHeadEnd[0].find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}liveness-logical-port')
+            liveness_port.text = str(self.mlpHeadEnds[0].liveness_port)
+            mepId = mlpHeadEnd[0].find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}mep')
+            mepId.text = str(self.mlpHeadEnds[0].mepId)
 
+            liveness_port = mlpHeadEnd[1].find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}liveness-logical-port')
+            liveness_port.text = str(self.mlpHeadEnds[1].liveness_port)
+            mepId = mlpHeadEnd[1].find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}mep')
+            mepId.text = str(self.mlpHeadEnds[1].mepId)            
+        tree.write(self.fileName)    
+    def getFileName(self):
+        return self.fileName
+    def removeMlpHeadEnd(self,mlpHeadEnd):
 
+        try:
+            tree = ET.parse("/work/cmcc_support/ofconfig/remove_protection_mep_template.xml")
+            root = tree.getroot()
+        except Exception, e:
+            print("Error:cannot parse file:remove_protection_mep_template.xml")
+            sys.exit(1)
+        self.fileName = '/work/cmcc_support/ofconfig/tmp/tpoam_remove_mep_' + self.mlpName + '.xml'    
+        for res in root.findall('{urn:onf:config:yang}resources'):
+            MLP_ProtectionGroup = res.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}MLP_ProtectionGroup')
+            resource_id = MLP_ProtectionGroup.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}resource-id') 
+            resource_id.text = str('protection_group_'+str(self.mlpIndex))
+        
+            
+            mlpEnd = MLP_ProtectionGroup.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}mlp-head-end-config')
+            liveness_port = mlpEnd.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}liveness-logical-port')
+            liveness_port.text = str(mlpHeadEnd.liveness_port)
+      
+        tree.write(self.fileName) 
+    def replaceMlpHeadEnd(self,mlpHeadEnd):
+
+        try:
+            tree = ET.parse("/work/cmcc_support/ofconfig/replace_protection_mep_template.xml")
+            root = tree.getroot()
+        except Exception, e:
+            print("Error:cannot parse file:replace_protection_mep_template.xml")
+            sys.exit(1)
+        self.fileName = '/work/cmcc_support/ofconfig/tmp/tpoam_replace_mep_' + self.mlpName + '.xml'    
+        for res in root.findall('{urn:onf:config:yang}resources'):
+            MLP_ProtectionGroup = res.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}MLP_ProtectionGroup')
+            resource_id = MLP_ProtectionGroup.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}resource-id') 
+            resource_id.text = str('protection_group_'+str(self.mlpIndex))
+        
+            
+            mlpEnd = MLP_ProtectionGroup.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}mlp-head-end-config')
+            liveness_port = mlpEnd.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}liveness-logical-port')
+            liveness_port.text = str(mlpHeadEnd.liveness_port)
+            mepId = mlpEnd.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}mep')
+            mepId.text = str(mlpHeadEnd.mepId) 
+            role = mlpEnd.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}role')
+            role.text = mlpHeadEnd.role
+        tree.write(self.fileName) 
+
+        
+if __name__ == "__main__":
+    """
+    self test
+    """
+    ends = [MLP_HEAD_END(mepId = 11,liveness_port = 0xF00000008),MLP_HEAD_END(mepId = 12,liveness_port = 0xF00000009)]        
+    mlp = MLP(mlpIndex = 5,mlpName = 'MLP_TEST_1',mlpHeadEnds=ends)
+    print(mlp.getFileName())

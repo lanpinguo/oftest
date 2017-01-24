@@ -319,9 +319,9 @@ class DeviceAgent(Thread):
                 # handlers for a specific packet
                 handled = False
                 if hdr_type in self.handlers.keys():
-                    handled = self.handlers[hdr_type](self, msg, rawmsg)
+                    handled = self.handlers[hdr_type](self,hdr_xid, msg, rawmsg)
                 if not handled and ("all" in self.handlers.keys()):
-                    handled = self.handlers["all"](self, msg, rawmsg)
+                    handled = self.handlers["all"](self,hdr_xid, msg, rawmsg)
 
                 if not handled: # Not handled, enqueue
                     with self.packets_cv:
@@ -339,6 +339,27 @@ class DeviceAgent(Thread):
         #   note that if offset = len(pkt), this is
         #   appends a harmless empty string
         self.buffered_input += pkt[offset:]
+    def register(self, msg_type, handler):
+        """
+        Register a callback to receive a specific message type.
+
+        Only one handler may be registered for a given message type.
+
+        WARNING:  A lock is held during the handler call back, so 
+        the handler should not make any blocking calls
+
+        @param msg_type The type of message to receive.  May be DEFAULT 
+        for all non-handled packets.  The special type, the string "all"
+        will send all packets to the handler.
+        @param handler The function to call when a message of the given 
+        type is received.
+        """
+        # Should check type is valid
+        if not handler and msg_type in self.handlers.keys():
+            del self.handlers[msg_type]
+            return
+        self.handlers[msg_type] = handler
+
 
     def _socket_ready_handle(self):
         """

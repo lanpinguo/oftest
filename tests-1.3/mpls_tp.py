@@ -5,7 +5,7 @@ vpws services test cases
 """
 
 import logging
-
+import time
 import oftest
 from oftest import config
 import oftest.base_tests as base_tests
@@ -19,7 +19,7 @@ from oftest.parse import parse_ipv6
 import ofdpa_const as ofdpa
 import custom
 
-
+import oftest.netconf as netconf
 
 
 
@@ -61,556 +61,7 @@ def ofdb_group_mpls_subtype_set(g, x):
     return(((g) & ~0x0f000000) | (((x) & 0x0000000f) << 24))
     
     
-class CreateLsp(base_tests.SimpleDataPlane):
-    """
-    Verify that creating a mpls LSP
-    """
-   
-    def runTest(self):
 
-        #delete_all_flows(self.controller)
-        '''
-        Add group
-        '''
-        uni_port = 3
-        uni_vlan = 10
-        lsp_ing_label = 1000
-        lsp_egr_label = 2000
-        nni_port = 4
-        nni_vlan = 100 | ofdpa.OFDPA_VID_PRESENT
-        
-        '''
-        add l2 interface group
-        '''
-        id = 0
-        id = ofdb_group_type_set(id,ofdpa.OFDPA_GROUP_ENTRY_TYPE_L2_INTERFACE)
-        id = ofdb_group_vlanid_set(id , nni_vlan)
-        id = ofdb_group_portid_set(id , nni_port)
-        action_list = [ofp.action.output(nni_port) ]#, ofp.action.pop_vlan()]
-        bucket_list = [ofp.bucket(actions = action_list)]
-
-        msg = ofp.message.group_add(
-            group_type=ofp.OFPGT_INDIRECT,
-            group_id= id,
-            buckets= bucket_list)
-        self.controller.message_send(msg)
-        '''
-        add mpls interface group
-        '''
-        ref_group = id
-        id = 0
-        id = ofdb_group_type_set(id,ofdpa.OFDPA_GROUP_ENTRY_TYPE_MPLS_LABEL)
-        id = ofdb_group_mpls_index_set(id , 0)
-        id = ofdb_group_mpls_subtype_set(id , ofdpa.OFDPA_MPLS_INTERFACE)
-        action_list = [ofp.action.group(group_id = ref_group) ,
-                       ofp.action.set_field(ofp.oxm.eth_src(value = [0x00,0x0e,0x5e,0x00,0x00,0x02])) ,
-                       ofp.action.set_field(ofp.oxm.eth_dst(value = [0x00,0x0e,0x5e,0x00,0x00,0x03])) ,
-                       ofp.action.set_field(ofp.oxm.vlan_vid(value = nni_vlan)) ]
-        bucket_list = [ofp.bucket(actions = action_list)]
-
-        msg = ofp.message.group_add(
-            group_type=ofp.OFPGT_INDIRECT,
-            group_id= id,
-            buckets= bucket_list)
-        self.controller.message_send(msg)        
- 
-        '''
-        add mpls tunnel label 1 group
-        '''
-        ref_group = id
-        id = 0
-        id = ofdb_group_type_set(id,ofdpa.OFDPA_GROUP_ENTRY_TYPE_MPLS_LABEL)
-        id = ofdb_group_mpls_index_set(id , 0)
-        id = ofdb_group_mpls_subtype_set(id , ofdpa.OFDPA_MPLS_TUNNEL_LABEL1)
-        action_list = [ofp.action.group(group_id = ref_group) ,
-                       ofp.action.push_mpls(ethertype = 0x8847) ,
-                       ofp.action.set_field(ofp.oxm.mpls_label(value = 1000)) ,
-                       ofp.action.copy_ttl_out() ,
-                       ofp.action.set_field(ofp.oxm.mpls_tc(value = 0))]
-        bucket_list = [ofp.bucket(actions = action_list)]
-
-        msg = ofp.message.group_add(
-            group_type=ofp.OFPGT_INDIRECT,
-            group_id= id,
-            buckets= bucket_list)
-        self.controller.message_send(msg)  
-
-       
-        do_barrier(self.controller)
-
-
-        '''
-        Add vlan table entry
-        '''
-        table_id =  ofdpa.OFDPA_FLOW_TABLE_ID_VLAN
-        match = ofp.match([
-            ofp.oxm.in_port(nni_port),
-            ofp.oxm.vlan_vid(nni_vlan)
-        ])
-        
-        instructions=[
-                    ofp.instruction.goto_table( ofdpa.OFDPA_FLOW_TABLE_ID_TERMINATION_MAC),
-        ]
-        priority = 1000
-
-        logging.info("Inserting vlan flow")
-        request = ofp.message.flow_add(
-                table_id=table_id,
-                match=match,
-                instructions=instructions,
-                buffer_id=ofp.OFP_NO_BUFFER,
-                priority=priority,
-                flags=ofp.OFPFF_SEND_FLOW_REM,
-                cookie=0x1234,
-                hard_timeout=1000,
-                idle_timeout=0)
-        self.controller.message_send(request)
-        
-        '''
-        Add termination mac table entry
-        '''
-        table_id = ofdpa.OFDPA_FLOW_TABLE_ID_TERMINATION_MAC
-        match = ofp.match([
-            ofp.oxm.in_port(nni_port),
-            ofp.oxm.eth_dst(value = [0x00,0x0e,0x5e,0x00,0x00,0x02]),
-            ofp.oxm.eth_type(value = 0x8847),            
-        ])
-        
-        instructions=[
-                    ofp.instruction.goto_table(ofdpa.OFDPA_FLOW_TABLE_ID_MPLS_1),
-        ]
-        priority = 1000
-
-        logging.info("Inserting termination mac flow")
-        request = ofp.message.flow_add(
-                table_id=table_id,
-                match=match,
-                instructions=instructions,
-                buffer_id=ofp.OFP_NO_BUFFER,
-                priority=priority,
-                flags=ofp.OFPFF_SEND_FLOW_REM,
-                cookie=0x1234,
-                hard_timeout=1000,
-                idle_timeout=0)
-        self.controller.message_send(request)
-        
-        '''
-        Add mpls 1 table entry
-        '''
-        table_id = ofdpa.OFDPA_FLOW_TABLE_ID_MPLS_1
-        match = ofp.match([
-            ofp.oxm.eth_type(value = 0x8847),            
-            ofp.oxm.mpls_label(value = 1000),
-            ofp.oxm.mpls_bos(value = 0),
-        ])
-        
-        instructions=[
-            ofp.instruction.apply_actions(actions = [ofp.action.pop_mpls(ethertype = 0x8847)]),
-            ofp.instruction.goto_table(ofdpa.OFDPA_FLOW_TABLE_ID_MPLS_2),
-        ]
-        priority = 1000
-
-        logging.info("Inserting  mpls 1 flow")
-        request = ofp.message.flow_add(
-                table_id=table_id,
-                match=match,
-                instructions=instructions,
-                buffer_id=ofp.OFP_NO_BUFFER,
-                priority=priority,
-                flags=ofp.OFPFF_SEND_FLOW_REM,
-                cookie=0x1234,
-                hard_timeout=1000,
-                idle_timeout=0)
-        self.controller.message_send(request)
-        
-        do_barrier(self.controller)
-
-        
-        # Send a packet through so that we can check stats were preserved
-        #self.dataplane.send(in_port, str(simple_tcp_packet(pktlen=100)))
-        #verify_flow_stats(self, ofp.match(), table_id=table_id, pkts=1)
-
-        # Send a flow-add with the same table_id, match, and priority, causing
-        # an overwrite
-        #logging.info("Overwriting flow")
-        '''
-        request = ofp.message.flow_add(
-                table_id=table_id,
-                match=match,
-                instructions=[
-                    ofp.instruction.apply_actions([ofp.action.output(out_port2)]),
-                ],
-                buffer_id=ofp.OFP_NO_BUFFER,
-                priority=priority,
-                flags=0,
-                cookie=0xabcd,
-                hard_timeout=3000,
-                idle_timeout=4000)
-        self.controller.message_send(request)
-        do_barrier(self.controller)
-        '''
-        # Should not get a flow-removed message
-        msg, _ = self.controller.poll(exp_msg=ofp.message.flow_removed,
-                                      timeout=oftest.ofutils.default_negative_timeout)
-        self.assertEquals(msg, None)
-
-        # Check that the fields in the flow stats entry match the second flow-add
-        stats = get_flow_stats(self, match)
-        self.assertEquals(len(stats), 1)
-        entry = stats[0]
-        logging.debug(entry.show())
-        self.assertEquals(entry.instructions, request.instructions)
-        self.assertEquals(entry.flags, request.flags)
-        self.assertEquals(entry.cookie, request.cookie)
-        self.assertEquals(entry.hard_timeout, request.hard_timeout)
-        self.assertEquals(entry.idle_timeout, request.idle_timeout)
-
-        # Flow stats should have been preserved
-        verify_flow_stats(self, ofp.match(), table_id=table_id, pkts=1)
-
-class CreatePw(base_tests.SimpleDataPlane):
-    """
-    Verify that creating a mpls LSP
-    """
-    experimenter_id = 0x1018
-    def runTest(self):
-
-        #delete_all_flows(self.controller)
-        '''
-        Add group
-        '''
-        uni_port = 3
-        nni_port = 4
-        uni_vlan = 10 | ofdpa.OFDPA_VID_PRESENT
-        '''
-        add l2 interface group
-        '''
-        id = 0
-        id = ofdb_group_type_set(id,ofdpa.OFDPA_GROUP_ENTRY_TYPE_L2_INTERFACE)
-        id = ofdb_group_vlanid_set(id , uni_vlan)
-        id = ofdb_group_portid_set(id , uni_port)
-        action_list = [ofp.action.output(uni_port) ,
-            ofp.action.set_field(ofp.oxm.mpls_tp_allow_vlan_translation()) ,
-        ]
-        bucket_list = [ofp.bucket(actions = action_list)]
-
-        msg = ofp.message.group_add(
-            group_type=ofp.OFPGT_INDIRECT,
-            group_id= id,
-            buckets= bucket_list)
-        self.controller.message_send(msg)
-
-        '''
-        Add Flow
-        '''
-        '''
-        Add mpls 1 table entry
-        '''
-        table_id = ofdpa.OFDPA_FLOW_TABLE_ID_MPLS_1
-        match = ofp.match([
-            ofp.oxm.eth_type(value = 0x8847),            
-            ofp.oxm.mpls_label(value = 100),
-            ofp.oxm.mpls_bos(value = 1),
-        ])
-        
-        '''
-        apply actions
-        '''
-        apy_actions = [ofp.action.pop_mpls(ethertype = 0x8847) ,
-            ofp.action.set_field(ofp.oxm.tunnel_id(value = 0x10002)) ,
-            ofp.action.pop_vlan() ,
-            ofp.action.experimenter(experimenter = 0x1018, data = [0x00,0x02,0x00,0x00,0x00,0x00,0x00,0x00 ]),
-            ofp.action.experimenter(experimenter = 0x1018, data = [0x00,0x04,0x00,0x00,0x00,0x00,0x00,0x00 ]),
-            ofp.action.set_field(ofp.oxm.mpls_tp_mpls_l2_port(value = 0x20001)) ,        
-            ofp.action.set_field(ofp.oxm.mpls_tp_mpls_type(value = 1)) ,        
-        ]
-        instructions=[
-            ofp.instruction.goto_table(ofdpa.OFDPA_FLOW_TABLE_ID_MPLS_TYPE),
-            ofp.instruction.write_actions(actions = [ofp.action.group(group_id = id)]),
-            ofp.instruction.apply_actions(actions = apy_actions),
-        ]
-        priority = 1000
-
-        logging.info("Inserting  mpls 1 flow")
-        request = ofp.message.flow_add(
-                table_id=table_id,
-                match=match,
-                instructions=instructions,
-                buffer_id=ofp.OFP_NO_BUFFER,
-                priority=priority,
-                flags=ofp.OFPFF_SEND_FLOW_REM,
-                cookie=0x1234,
-                hard_timeout=1000,
-                idle_timeout=0)
-        self.controller.message_send(request)
-       
-        '''
-        add mpls vpn group
-        '''
-        ref_group = 0x93000000
-        id = 0
-        id = ofdb_group_type_set(id,ofdpa.OFDPA_GROUP_ENTRY_TYPE_MPLS_LABEL)
-        id = ofdb_group_mpls_index_set(id , 0)
-        id = ofdb_group_mpls_subtype_set(id , ofdpa.OFDPA_MPLS_L2_VPN_LABEL)
-        action_list = [ofp.action.group(group_id = ref_group) ,
-           ofp.action.experimenter(experimenter = 0x1018, data = [0x00,0x01,0x00,0x00,0x00,0x00,0x00,0x00 ]),
-           ofp.action.push_mpls(ethertype = 0x8847) ,
-           ofp.action.experimenter(experimenter = 0x1018, data = [0x00,0x03,0x00,0x00,0x00,0x00,0x00,0x00 ]),
-           ofp.action.set_field(ofp.oxm.mpls_label(value = 100)) ,
-           ofp.action.set_field(ofp.oxm.mpls_bos(value = 1)),
-           ofp.action.set_field(ofp.oxm.mpls_tc(value = 1)),
-           ofp.action.set_mpls_ttl(mpls_ttl = 255)
-        ]
-        bucket_list = [ofp.bucket(actions = action_list)]
-        msg = ofp.message.group_add(
-            group_type=ofp.OFPGT_INDIRECT,
-            group_id= id,
-            buckets= bucket_list)
-        self.controller.message_send(msg)     
-
-
-        '''
-        Add mpls l2 port table entry
-        '''
-        table_id = ofdpa.OFDPA_FLOW_TABLE_ID_MPLS_L2_PORT
-        match = ofp.match([
-            ofp.oxm.tunnel_id(value = 0x10002),
-            ofp.oxm.eth_type(value = 0x0800),
-            ofp.oxm.mpls_tp_mpls_l2_port(value = 1),            
-        ])
-        
-        '''
-        apply actions
-        '''
-        apy_actions = [ofp.action.set_field(ofp.oxm.mpls_tp_qos_index(value = 1)) ,
-        ]
-        instructions=[
-            ofp.instruction.goto_table(ofdpa.OFDPA_FLOW_TABLE_ID_MPLS_DSCP_TRUST),
-            ofp.instruction.write_actions(actions = [ofp.action.group(group_id = id)]),
-            ofp.instruction.apply_actions(actions = apy_actions),
-        ]
-        priority = 1000
-
-        logging.info("Inserting  mpls l2 port flow")
-        request = ofp.message.flow_add(
-                table_id=table_id,
-                match=match,
-                instructions=instructions,
-                buffer_id=ofp.OFP_NO_BUFFER,
-                priority=priority,
-                flags=ofp.OFPFF_SEND_FLOW_REM,
-                cookie=0x1234,
-                hard_timeout=1000,
-                idle_timeout=0)
-        self.controller.message_send(request)
-       
-        '''
-        Add vlan table entry
-        '''
-        table_id = ofdpa.OFDPA_FLOW_TABLE_ID_VLAN
-        match = ofp.match([
-            ofp.oxm.in_port(uni_port),
-            ofp.oxm.vlan_vid(uni_vlan),
-        ])
-        
-        '''
-        apply actions
-        '''
-        apy_actions = [ofp.action.set_field(ofp.oxm.mpls_tp_mpls_type(value = 1)) ,
-            ofp.action.set_field(ofp.oxm.tunnel_id(value = 0x10002)) ,
-            ofp.action.set_field(ofp.oxm.mpls_tp_mpls_l2_port(value = 1)) ,
-        
-        ]
-        instructions=[
-            ofp.instruction.goto_table(ofdpa.OFDPA_FLOW_TABLE_ID_MPLS_L2_PORT),
-            ofp.instruction.apply_actions(actions = apy_actions),
-        ]
-        priority = 1000
-
-        logging.info("Inserting vlan flow")
-        request = ofp.message.flow_add(
-                table_id=table_id,
-                match=match,
-                instructions=instructions,
-                buffer_id=ofp.OFP_NO_BUFFER,
-                priority=priority,
-                flags=ofp.OFPFF_SEND_FLOW_REM,
-                cookie=0x1234,
-                hard_timeout=1000,
-                idle_timeout=0)
-        self.controller.message_send(request)
-        
-        do_barrier(self.controller)
-
-        
-class CreateLsp256(base_tests.SimpleDataPlane):
-    """
-    Verify that creating a mpls LSP
-    """
-   
-    def runTest(self):
-
-
-        for i in range(1,custom.PE1_VPWS_MAX) :
-            uni_port = custom.PE1_UNI_PORT
-            uni_vlan = custom.PE1_UNI_VLAN + i
-            lsp_ing_label = custom.PE1_LSP_ING_LABEL + i
-            lsp_egr_label = custom.PE1_LSP_EGR_LABEL + i
-            nni_port = custom.PE1_NNI_PORT
-            nni_vlan = custom.PE1_NNI_VLAN | ofdpa.OFDPA_VID_PRESENT + i
-            tunnel_id = custom.PE1_TUNNEL_ID + i
-            port_mac = custom.PE1_PORT_MAC
-            dst_mac = custom.PE1_DST_MAC     
-
-            '''
-            Add group
-            '''
-
-            '''
-            add l2 interface group
-            '''
-            id = 0
-            id = ofdb_group_type_set(id,ofdpa.OFDPA_GROUP_ENTRY_TYPE_L2_INTERFACE)
-            id = ofdb_group_vlanid_set(id , nni_vlan)
-            id = ofdb_group_portid_set(id , nni_port)
-            action_list = [ofp.action.output(nni_port) ]#, ofp.action.pop_vlan()]
-            bucket_list = [ofp.bucket(actions = action_list)]
-
-            msg = ofp.message.group_add(
-                group_type=ofp.OFPGT_INDIRECT,
-                group_id= id,
-                buckets= bucket_list)
-            self.controller.message_send(msg)
-            '''
-            add mpls interface group
-            '''
-            ref_group = id
-            id = 0
-            id = ofdb_group_type_set(id,ofdpa.OFDPA_GROUP_ENTRY_TYPE_MPLS_LABEL)
-            id = ofdb_group_mpls_index_set(id , i)
-            id = ofdb_group_mpls_subtype_set(id , ofdpa.OFDPA_MPLS_INTERFACE)
-            action_list = [ofp.action.group(group_id = ref_group) ,
-                           ofp.action.set_field(ofp.oxm.eth_src(value = port_mac)) ,
-                           ofp.action.set_field(ofp.oxm.eth_dst(value = dst_mac)) ,
-                           ofp.action.set_field(ofp.oxm.vlan_vid(value = nni_vlan)) ]
-            bucket_list = [ofp.bucket(actions = action_list)]
-
-            msg = ofp.message.group_add(
-                group_type=ofp.OFPGT_INDIRECT,
-                group_id= id,
-                buckets= bucket_list)
-            self.controller.message_send(msg)        
-     
-            '''
-            add mpls tunnel label 1 group
-            '''
-            ref_group = id
-            id = 0
-            id = ofdb_group_type_set(id,ofdpa.OFDPA_GROUP_ENTRY_TYPE_MPLS_LABEL)
-            id = ofdb_group_mpls_index_set(id , 0)
-            id = ofdb_group_mpls_subtype_set(id , ofdpa.OFDPA_MPLS_TUNNEL_LABEL1)
-            action_list = [ofp.action.group(group_id = ref_group) ,
-                           ofp.action.push_mpls(ethertype = 0x8847) ,
-                           ofp.action.set_field(ofp.oxm.mpls_label(value = 1000)) ,
-                           ofp.action.copy_ttl_out() ,
-                           ofp.action.set_field(ofp.oxm.mpls_tc(value = 0))]
-            bucket_list = [ofp.bucket(actions = action_list)]
-
-            msg = ofp.message.group_add(
-                group_type=ofp.OFPGT_INDIRECT,
-                group_id= id,
-                buckets= bucket_list)
-            self.controller.message_send(msg)  
-
-           
-            do_barrier(self.controller)
-
-
-            '''
-            Add vlan table entry
-            '''
-            table_id =  ofdpa.OFDPA_FLOW_TABLE_ID_VLAN
-            match = ofp.match([
-                ofp.oxm.in_port(nni_port),
-                ofp.oxm.vlan_vid(nni_vlan)
-            ])
-            
-            instructions=[
-                        ofp.instruction.goto_table( ofdpa.OFDPA_FLOW_TABLE_ID_TERMINATION_MAC),
-            ]
-            priority = 1000
-
-            logging.info("Inserting vlan flow")
-            request = ofp.message.flow_add(
-                    table_id=table_id,
-                    match=match,
-                    instructions=instructions,
-                    buffer_id=ofp.OFP_NO_BUFFER,
-                    priority=priority,
-                    flags=ofp.OFPFF_SEND_FLOW_REM,
-                    cookie=0x1234,
-                    hard_timeout=1000,
-                    idle_timeout=0)
-            self.controller.message_send(request)
-            
-            '''
-            Add termination mac table entry
-            '''
-            table_id = ofdpa.OFDPA_FLOW_TABLE_ID_TERMINATION_MAC
-            match = ofp.match([
-                ofp.oxm.in_port(nni_port),
-                ofp.oxm.eth_dst(value = [0x00,0x0e,0x5e,0x00,0x00,0x02]),
-                ofp.oxm.eth_type(value = 0x8847),            
-            ])
-            
-            instructions=[
-                        ofp.instruction.goto_table(ofdpa.OFDPA_FLOW_TABLE_ID_MPLS_1),
-            ]
-            priority = 1000
-
-            logging.info("Inserting termination mac flow")
-            request = ofp.message.flow_add(
-                    table_id=table_id,
-                    match=match,
-                    instructions=instructions,
-                    buffer_id=ofp.OFP_NO_BUFFER,
-                    priority=priority,
-                    flags=ofp.OFPFF_SEND_FLOW_REM,
-                    cookie=0x1234,
-                    hard_timeout=1000,
-                    idle_timeout=0)
-            self.controller.message_send(request)
-            
-            '''
-            Add mpls 1 table entry
-            '''
-            table_id = ofdpa.OFDPA_FLOW_TABLE_ID_MPLS_1
-            match = ofp.match([
-                ofp.oxm.eth_type(value = 0x8847),            
-                ofp.oxm.mpls_label(value = 1000),
-                ofp.oxm.mpls_bos(value = 0),
-            ])
-            
-            instructions=[
-                ofp.instruction.apply_actions(actions = [ofp.action.pop_mpls(ethertype = 0x8847)]),
-                ofp.instruction.goto_table(ofdpa.OFDPA_FLOW_TABLE_ID_MPLS_2),
-            ]
-            priority = 1000
-
-            logging.info("Inserting  mpls 1 flow")
-            request = ofp.message.flow_add(
-                    table_id=table_id,
-                    match=match,
-                    instructions=instructions,
-                    buffer_id=ofp.OFP_NO_BUFFER,
-                    priority=priority,
-                    flags=ofp.OFPFF_SEND_FLOW_REM,
-                    cookie=0x1234,
-                    hard_timeout=1000,
-                    idle_timeout=0)
-            self.controller.message_send(request)
-            
-            do_barrier(self.controller)
 
 class demo(advanced_tests.AdvancedProtocol):
     """
@@ -683,17 +134,955 @@ class demo(advanced_tests.AdvancedProtocol):
 
             do_barrier(pe2)        
 
-class keepControllerOnline(advanced_tests.AdvancedProtocol):
+
+
+class TUNNEL():
     """
-    Verify that creating a mpls LSP
+    tunnel flow config data model
     """
-    experimenter_id = 0x1018
+    def __init__(self,tunnelIndex,lsp_list = [], proMode = None):
+        self.nni2uni = []
+        self.uni2nni = []
+        self.tunnelIndex = tunnelIndex
+        self.livenessPortWorker = None
+        self.livenessPortProtector = None
+        self.lsp_list = lsp_list
+        
+        if proMode == 0:
+            self.bundleHandle = lsp_list[0].bundle_handle()
+        elif proMode == 1:
+            '''
+            add mpls fast failover group
+            '''
+            self.livenessPortWorker = 0xF0000000 + lsp_list[0].lspIndex
+            self.livenessPortProtector = 0xF0000000 + lsp_list[1].lspIndex
+            
+            id = 0
+            id = ofdb_group_type_set(id,ofdpa.OFDPA_GROUP_ENTRY_TYPE_MPLS_FORWARDING)
+            id = ofdb_group_mpls_index_set(id , self.tunnelIndex)
+            id = ofdb_group_mpls_subtype_set(id , ofdpa.OFDPA_MPLS_FAST_FAILOVER)
+            self.bundleHandle = id
+            
+            ref_group = lsp_list[0].bundle_handle()
+            action_list = [ofp.action.group(group_id = ref_group)  ]                           
+            bucket_worker = ofp.bucket(watch_port = self.livenessPortWorker,actions = action_list)
+            
+            ref_group = lsp_list[1].bundle_handle()
+            action_list = [ofp.action.group(group_id = ref_group) ]                           
+            bucket_protector = ofp.bucket( watch_port = self.livenessPortProtector,actions = action_list) 
+
+            
+            bucket_list = [bucket_worker,bucket_protector]
+            msg = ofp.message.group_add(
+                group_type=ofp.OFPGT_INDIRECT,
+                group_id= id,
+                buckets= bucket_list)
+            self.uni2nni.append(msg)
+
+    def get_flow_db(self):
+        return (self.uni2nni,self.nni2uni )
+    def bundle_handle(self):
+        return self.bundleHandle
+    def getMepInfo(self):
+        self.worker_mepid = self.lsp_list[0].getLmepId()
+        self.protector_mepid = self.lsp_list[1].getLmepId()
+        return (self.worker_mepid,self.protector_mepid)
+        
+        
+    def updateLsp(self,oldLsp , newLsp ):
+        
+        msg = self.uni2nni[0]
+        
+        '''
+        update mpls fast failover group
+        '''
+
+        if msg.buckets[0].watch_port == 0xF0000000 + oldLsp.lspIndex:
+            self.livenessPortWorker = 0xF0000000 + newLsp.lspIndex
+            ref_group = newLsp.bundle_handle()
+            self.lsp_list[0] = newLsp #update record
+            action_list = [ofp.action.group(group_id = ref_group)  ]                           
+            bucket_worker = ofp.bucket(watch_port = self.livenessPortWorker,actions = action_list)
+            bucket_protector = msg.buckets[1]    
+        elif msg.buckets[1].watch_port == 0xF0000000 + oldLsp.lspIndex:
+            self.livenessPortProtector = 0xF0000000 + newLsp.lspIndex
+            ref_group = newLsp.bundle_handle()
+            self.lsp_list[1] = newLsp #update record
+            action_list = [ofp.action.group(group_id = ref_group) ]                           
+            bucket_protector = ofp.bucket( watch_port = self.livenessPortProtector,actions = action_list) 
+            bucket_worker = msg.buckets[0]    
+        else:
+            return ([],[]) #old lsp not in the tunnel
+        bucket_list = [bucket_worker,bucket_protector]
+        newMsg = ofp.message.group_mod(
+            command =ofp.OFPGC_MODIFY,
+            group_type=ofp.OFPGT_INDIRECT,
+            group_id= msg.group_id,
+            buckets= bucket_list)
+        self.uni2nni[0] = newMsg #update record
+        
+        return ([newMsg],[])
+
+            
+class LSP():
+    """
+    lsp flow config data model
+    """
+    def __init__(self,lspIndex, inLabel, outLabel, nniPort, portMac, dstMac, nniVlan = None,Qos = None):
+        self.nni2uni = []
+        self.uni2nni = []
+        self.Oam_nni2uni = []
+        self.Oam_uni2nni = []
+        self.lspIndex = lspIndex
+        self.inLabel = inLabel
+        self.outLabel = outLabel
+        self.nniPort = nniPort
+        self.bundleHandle = None
+        self.nni_vlan = nniVlan
+        self.nni_port = nniPort
+        self.port_mac = portMac
+        self.dst_mac = dstMac
+        self.mpls_interface_group_id  = None
+        self.meg = None
+        '''
+        add l2 interface group
+        '''
+        id = 0
+        id = ofdb_group_type_set(id,ofdpa.OFDPA_GROUP_ENTRY_TYPE_L2_INTERFACE)
+        id = ofdb_group_vlanid_set(id , self.nni_vlan)
+        id = ofdb_group_portid_set(id , self.nni_port)
+        action_list = [ofp.action.output(self.nni_port) ]#, ofp.action.pop_vlan()]
+        bucket_list = [ofp.bucket(actions = action_list)]
+
+        msg = ofp.message.group_add(
+            group_type=ofp.OFPGT_INDIRECT,
+            group_id= id,
+            buckets= bucket_list)
+        self.uni2nni.append(msg)
+        
+        '''
+        add mpls interface group
+        '''
+        ref_group = id
+        id = 0
+        id = ofdb_group_type_set(id,ofdpa.OFDPA_GROUP_ENTRY_TYPE_MPLS_LABEL)
+        id = ofdb_group_mpls_index_set(id , self.lspIndex)
+        id = ofdb_group_mpls_subtype_set(id , ofdpa.OFDPA_MPLS_INTERFACE)
+        self.mpls_interface_group_id = id
+        action_list = [ofp.action.group(group_id = ref_group) ,
+                       ofp.action.set_field(ofp.oxm.eth_src(value = self.port_mac)) ,
+                       ofp.action.set_field(ofp.oxm.eth_dst(value = self.dst_mac)) ,
+                       ofp.action.set_field(ofp.oxm.vlan_vid(value = self.nni_vlan)) ]
+        bucket_list = [ofp.bucket(actions = action_list)]
+
+        msg = ofp.message.group_add(
+            group_type=ofp.OFPGT_INDIRECT,
+            group_id= id,
+            buckets= bucket_list)
+        self.uni2nni.append(msg)
+
+        '''
+        add mpls tunnel label 1 group
+        '''
+        ref_group = id
+        id = 0
+        id = ofdb_group_type_set(id,ofdpa.OFDPA_GROUP_ENTRY_TYPE_MPLS_LABEL)
+        id = ofdb_group_mpls_index_set(id , self.lspIndex)
+        id = ofdb_group_mpls_subtype_set(id , ofdpa.OFDPA_MPLS_TUNNEL_LABEL1)
+        self.bundleHandle = id
+        action_list = [ofp.action.group(group_id = ref_group) ,
+                       ofp.action.push_mpls(ethertype = 0x8847) ,
+                       ofp.action.set_field(ofp.oxm.mpls_label(value = self.outLabel)) ,
+                       ofp.action.copy_ttl_out() ,
+                       ofp.action.set_field(ofp.oxm.mpls_tc(value = 0))]
+        bucket_list = [ofp.bucket(actions = action_list)]
+
+        msg = ofp.message.group_add(
+            group_type=ofp.OFPGT_INDIRECT,
+            group_id= id,
+            buckets= bucket_list)
+        self.uni2nni.append(msg)
+
+  
+        '''
+        Add vlan table entry
+        '''
+        table_id =  ofdpa.OFDPA_FLOW_TABLE_ID_VLAN
+        match = ofp.match([
+            ofp.oxm.in_port(self.nni_port),
+            ofp.oxm.vlan_vid(self.nni_vlan)
+        ])
+        
+        instructions=[
+                    ofp.instruction.goto_table( ofdpa.OFDPA_FLOW_TABLE_ID_TERMINATION_MAC),
+        ]
+        priority = 1000
+
+        logging.info("Inserting vlan flow")
+        msg = ofp.message.flow_add(
+                table_id=table_id,
+                match=match,
+                instructions=instructions,
+                buffer_id=ofp.OFP_NO_BUFFER,
+                priority=priority,
+                flags=ofp.OFPFF_SEND_FLOW_REM,
+                cookie=0x1234,
+                hard_timeout=0,
+                idle_timeout=0)
+        self.nni2uni.append(msg)
+        
+        '''
+        Add termination mac table entry
+        '''
+        table_id = ofdpa.OFDPA_FLOW_TABLE_ID_TERMINATION_MAC
+        match = ofp.match([
+            ofp.oxm.in_port(self.nni_port),
+            ofp.oxm.eth_dst(value = self.port_mac),
+            ofp.oxm.eth_type(value = 0x8847),            
+        ])
+        
+        instructions=[
+                    ofp.instruction.goto_table(ofdpa.OFDPA_FLOW_TABLE_ID_MPLS_1),
+        ]
+        priority = 1000
+
+        logging.info("Inserting termination mac flow")
+        msg = ofp.message.flow_add(
+                table_id=table_id,
+                match=match,
+                instructions=instructions,
+                buffer_id=ofp.OFP_NO_BUFFER,
+                priority=priority,
+                flags=ofp.OFPFF_SEND_FLOW_REM,
+                cookie=0x1234,
+                hard_timeout=0,
+                idle_timeout=0)
+        self.nni2uni.append(msg)
+        
+        '''
+        Add mpls 1 table entry
+        '''
+        table_id = ofdpa.OFDPA_FLOW_TABLE_ID_MPLS_1
+        match = ofp.match([
+            ofp.oxm.eth_type(value = 0x8847),            
+            ofp.oxm.mpls_label(value = self.inLabel),
+            ofp.oxm.mpls_bos(value = 0),
+        ])
+        
+        instructions=[
+            ofp.instruction.apply_actions(actions = [ofp.action.pop_mpls(ethertype = 0x8847)]),
+            ofp.instruction.goto_table(ofdpa.OFDPA_FLOW_TABLE_ID_MPLS_2),
+        ]
+        priority = 1000
+
+        logging.info("Inserting  mpls 1 flow")
+        msg = ofp.message.flow_add(
+                table_id=table_id,
+                match=match,
+                instructions=instructions,
+                buffer_id=ofp.OFP_NO_BUFFER,
+                priority=priority,
+                flags=ofp.OFPFF_SEND_FLOW_REM,
+                cookie=0x1234,
+                hard_timeout=0,
+                idle_timeout=0)
+        self.nni2uni.append(msg)
+    def addOam(self,meg):    
+        ####################################################################################
+        #
+        # Create oam
+        #
+        ####################################################################################        
+
+        self.meg = meg
+            
+        '''
+        Add Flow
+        '''
+        '''
+        Add mpls maintenance point table entry
+        '''
+        table_id = ofdpa.OFDPA_FLOW_TABLE_ID_MPLS_MAINTENANCE_POINT
+        match = ofp.match([
+            ofp.oxm.eth_type(value = 0x8902),            
+            ofp.oxm.mpls_tp_mp_id(value = meg.lmepid),
+            ofp.oxm.mpls_tp_oam_y1731_opcode(value = 1),
+        ])
+        
+        '''
+        apply actions 
+        '''
+        apy_actions = [ofp.action.output(port = ofp.OFPP_LOCAL ,max_len = 0xffff) ,
+        ]
+        instructions=[
+            #ofp.instruction.clear_actions(),
+            ofp.instruction.apply_actions(actions = apy_actions),
+        ]
+        priority = 1000
+
+        logging.info("Inserting mpls maintenance point flow")
+        msg = ofp.message.flow_add(
+                table_id=table_id,
+                match=match,
+                instructions=instructions,
+                buffer_id=ofp.OFP_NO_BUFFER,
+                priority=priority,
+                flags=ofp.OFPFF_SEND_FLOW_REM,
+                cookie=0x1234,
+                hard_timeout=0,
+                idle_timeout=0)
+        self.Oam_nni2uni.append(msg)
+        
+
+        '''
+        Add mpls 1 table entry
+        '''
+        table_id = ofdpa.OFDPA_FLOW_TABLE_ID_MPLS_1
+        match = ofp.match([
+            ofp.oxm.eth_type(value = 0x8847),            
+            ofp.oxm.mpls_label(value = self.inLabel),
+            ofp.oxm.mpls_bos(value = 0),
+            ofp.oxm.mpls_tp_ach_channel(value = 0x8902),
+            ofp.oxm.mpls_tp_data_first_nibble(value = 1),
+            ofp.oxm.mpls_tp_next_label_is_gal(value = 1)
+        ])
+        
+        action = [ofp.action.pop_mpls(ethertype = 0x8847),
+            ofp.action.set_field(ofp.oxm.mpls_tp_mp_id(value = meg.lmepid)),
+            ofp.action.pop_mpls(ethertype = 0x8902),
+            ofp.action.experimenter(experimenter = 0x1018, data = [0x00,0x04,0x00,0x00,0x00,0x00,0x00,0x00 ]),
+        ]
+        instructions=[
+            ofp.instruction.apply_actions(actions = action),
+            ofp.instruction.goto_table(ofdpa.OFDPA_FLOW_TABLE_ID_MPLS_MAINTENANCE_POINT),
+        ]
+        priority = 1000
+
+        logging.info("Inserting  mpls 1 flow")
+        msg = ofp.message.flow_add(
+                table_id=table_id,
+                match=match,
+                instructions=instructions,
+                buffer_id=ofp.OFP_NO_BUFFER,
+                priority=priority,
+                flags=ofp.OFPFF_SEND_FLOW_REM,
+                cookie=0x1234,
+                hard_timeout=0,
+                idle_timeout=0)
+        self.Oam_nni2uni.append(msg)
+
+        '''
+        Add injected oam table entry
+        '''
+        table_id = ofdpa.OFDPA_FLOW_TABLE_ID_INJECTED_OAM
+        match = ofp.match([
+            ofp.oxm.eth_type(value = 0x8902),            
+            ofp.oxm.mpls_tp_mp_id(value = meg.lmepid),
+            ofp.oxm.mpls_tp_oam_y1731_opcode(value = 1),
+        ])
+        
+        aply_action = [ofp.action.push_mpls(ethertype = 0x8847),
+            ofp.action.set_field(ofp.oxm.mpls_label(value = 13)),
+            ofp.action.set_field(ofp.oxm.mpls_bos(value = 1)),
+            ofp.action.set_field(ofp.oxm.mpls_tp_ttl(value = 64)),
+            ofp.action.experimenter(experimenter = 0x1018, data = [0x00,0x03,0x00,0x00,0x00,0x00,0x00,0x00 ]), #push cw
+            ofp.action.set_field(ofp.oxm.mpls_tp_data_first_nibble(value = 1)),
+            ofp.action.set_field(ofp.oxm.mpls_tp_ach_channel(value = 0x8902)),
+            ofp.action.push_mpls(ethertype = 0x8847),
+            ofp.action.set_field(ofp.oxm.mpls_label(value = self.outLabel)),
+            ofp.action.set_field(ofp.oxm.mpls_tp_ttl(value = 64)),          
+            ofp.action.set_field(ofp.oxm.vlan_pcp(value = 1)),            
+        ]
+        
+        write_action = [ ofp.action.group(group_id = self.mpls_interface_group_id),            
+        ]
+        instructions=[
+            ofp.instruction.apply_actions(actions = aply_action),
+            ofp.instruction.write_actions(actions = write_action),
+        ]
+        priority = 1000
+
+        logging.info("Inserting injected oam table flow")
+        msg = ofp.message.flow_add(
+                table_id=table_id,
+                match=match,
+                instructions=instructions,
+                buffer_id=ofp.OFP_NO_BUFFER,
+                priority=priority,
+                flags=ofp.OFPFF_SEND_FLOW_REM,
+                cookie=0x1234,
+                hard_timeout=0,
+                idle_timeout=0)
+        self.Oam_uni2nni.append(msg)
+        
+        return (self.Oam_uni2nni, self.Oam_nni2uni)
+
+    def getLmepId(self):
+        return self.meg.lmepid
+    def get_flow_db(self):
+        return ( self.uni2nni,self.nni2uni)
+    def get_oam_flow_db(self):
+        return ( self.Oam_uni2nni,self.Oam_nni2uni)        
+    def set(self,requset):
+        pass
+    def bundle_handle(self):
+        return self.bundleHandle
+
+class PW():
+    """
+    pw flow config data model
+    """
+    def __init__(self,pwIndex,inLabel,outLabel,uniPort,tunnel, uniVlan = [],  Qos = None):
+        self.nni2uni = []
+        self.uni2nni = []
+        self.inLabel = inLabel
+        self.outLabel = outLabel
+        self.tunnel_handle = tunnel.bundle_handle()
+        self.uniPort = uniPort
+        
+        self.uniVlan = []
+        for vlan in uniVlan:
+            vlan |= ofdpa.OFDPA_VID_PRESENT
+            self.uniVlan.append(vlan)
+            
+        self.pwIndex = pwIndex
+        self.local_mpls_l2_port  = 0x00000000 + pwIndex      
+        self.network_mpls_l2_port = 0x00020000 + pwIndex       
+        self.tunnel_id = 0x00010000 + pwIndex       
+        ####################################################################################
+        #
+        # Create pw
+        #
+        ####################################################################################        
+        '''
+        add l2 interface group
+        '''
+        id = 0
+        id = ofdb_group_type_set(id,ofdpa.OFDPA_GROUP_ENTRY_TYPE_L2_INTERFACE)
+        id = ofdb_group_vlanid_set(id , self.uniVlan[0] )
+        id = ofdb_group_portid_set(id , self.uniPort)
+        action_list = [ofp.action.output(self.uniPort) ,
+            ofp.action.set_field(ofp.oxm.mpls_tp_allow_vlan_translation()) ,
+        ]
+        bucket_list = [ofp.bucket(actions = action_list)]
+
+        msg = ofp.message.group_add(
+            group_type=ofp.OFPGT_INDIRECT,
+            group_id= id,
+            buckets= bucket_list)
+        self.nni2uni.append(msg)
+
+        '''
+        Add Flow
+        '''
+        '''
+        Add mpls 1 table entry
+        '''
+        table_id = ofdpa.OFDPA_FLOW_TABLE_ID_MPLS_1
+        match = ofp.match([
+            ofp.oxm.eth_type(value = 0x8847),            
+            ofp.oxm.mpls_label(value = self.inLabel),
+            ofp.oxm.mpls_bos(value = 1),
+        ])
+        
+        '''
+        apply actions
+        '''
+        apy_actions = [ofp.action.pop_mpls(ethertype = 0x8847) ,
+            ofp.action.set_field(ofp.oxm.tunnel_id(value = self.tunnel_id)) ,
+            ofp.action.pop_vlan() ,
+            ofp.action.experimenter(experimenter = 0x1018, data = [0x00,0x02,0x00,0x00,0x00,0x00,0x00,0x00 ]),
+            ofp.action.experimenter(experimenter = 0x1018, data = [0x00,0x04,0x00,0x00,0x00,0x00,0x00,0x00 ]),
+            ofp.action.set_field(ofp.oxm.mpls_tp_mpls_l2_port(value = self.network_mpls_l2_port)) ,        
+            ofp.action.set_field(ofp.oxm.mpls_tp_mpls_type(value = 1)) ,        
+        ]
+        instructions=[
+            ofp.instruction.goto_table(ofdpa.OFDPA_FLOW_TABLE_ID_MPLS_TYPE),
+            ofp.instruction.write_actions(actions = [ofp.action.group(group_id = id)]),
+            ofp.instruction.apply_actions(actions = apy_actions),
+        ]
+        priority = 1000
+
+        logging.info("Inserting  mpls 1 flow")
+        msg = ofp.message.flow_add(
+                table_id=table_id,
+                match=match,
+                instructions=instructions,
+                buffer_id=ofp.OFP_NO_BUFFER,
+                priority=priority,
+                flags=ofp.OFPFF_SEND_FLOW_REM,
+                cookie=0x1234,
+                hard_timeout=0,
+                idle_timeout=0)
+        self.nni2uni.append(msg)     
+       
+        '''
+        add mpls vpn group
+        '''
+        ref_group = self.tunnel_handle
+        id = 0
+        id = ofdb_group_type_set(id,ofdpa.OFDPA_GROUP_ENTRY_TYPE_MPLS_LABEL)
+        id = ofdb_group_mpls_index_set(id , self.pwIndex)
+        id = ofdb_group_mpls_subtype_set(id , ofdpa.OFDPA_MPLS_L2_VPN_LABEL)
+        action_list = [ofp.action.group(group_id = ref_group) ,
+           ofp.action.experimenter(experimenter = 0x1018, data = [0x00,0x01,0x00,0x00,0x00,0x00,0x00,0x00 ]),
+           ofp.action.push_mpls(ethertype = 0x8847) ,
+           ofp.action.experimenter(experimenter = 0x1018, data = [0x00,0x03,0x00,0x00,0x00,0x00,0x00,0x00 ]),
+           ofp.action.set_field(ofp.oxm.mpls_label(value = self.outLabel)) ,
+           ofp.action.set_field(ofp.oxm.mpls_bos(value = 1)),
+           ofp.action.set_field(ofp.oxm.mpls_tc(value = 1)),
+           ofp.action.set_mpls_ttl(mpls_ttl = 255)
+        ]
+        bucket_list = [ofp.bucket(actions = action_list)]
+        msg = ofp.message.group_add(
+            group_type=ofp.OFPGT_INDIRECT,
+            group_id= id,
+            buckets= bucket_list)
+        self.uni2nni.append(msg)     
+
+
+        '''
+        Add mpls l2 port table entry
+        '''
+        table_id = ofdpa.OFDPA_FLOW_TABLE_ID_MPLS_L2_PORT
+        match = ofp.match([
+            ofp.oxm.tunnel_id(value = self.tunnel_id),
+            ofp.oxm.eth_type(value = 0x0800),
+            ofp.oxm.mpls_tp_mpls_l2_port(value = self.local_mpls_l2_port),            
+        ])
+        
+        '''
+        apply actions
+        '''
+        apy_actions = [ofp.action.set_field(ofp.oxm.mpls_tp_qos_index(value = 1)) ,
+        ]
+        instructions=[
+            ofp.instruction.goto_table(ofdpa.OFDPA_FLOW_TABLE_ID_MPLS_DSCP_TRUST),
+            ofp.instruction.write_actions(actions = [ofp.action.group(group_id = id)]),
+            ofp.instruction.apply_actions(actions = apy_actions),
+        ]
+        priority = 1000
+
+        logging.info("Inserting  mpls l2 port flow")
+        msg = ofp.message.flow_add(
+                table_id=table_id,
+                match=match,
+                instructions=instructions,
+                buffer_id=ofp.OFP_NO_BUFFER,
+                priority=priority,
+                flags=ofp.OFPFF_SEND_FLOW_REM,
+                cookie=0x1234,
+                hard_timeout=0,
+                idle_timeout=0)
+        self.uni2nni.append(msg)
+       
+        '''
+        Add vlan table entry
+        '''
+        table_id = ofdpa.OFDPA_FLOW_TABLE_ID_VLAN
+        match = ofp.match([
+            ofp.oxm.in_port(self.uniPort),
+            ofp.oxm.vlan_vid(self.uniVlan[0]),
+        ])
+        
+        '''
+        apply actions
+        '''
+        apy_actions = [ofp.action.set_field(ofp.oxm.mpls_tp_mpls_type(value = 1)) ,
+            ofp.action.set_field(ofp.oxm.tunnel_id(value = self.tunnel_id)) ,
+            ofp.action.set_field(ofp.oxm.mpls_tp_mpls_l2_port(value = self.local_mpls_l2_port)) ,
+        
+        ]
+        instructions=[
+            ofp.instruction.goto_table(ofdpa.OFDPA_FLOW_TABLE_ID_MPLS_L2_PORT),
+            ofp.instruction.apply_actions(actions = apy_actions),
+        ]
+        priority = 1000
+
+        logging.info("Inserting vlan flow")
+        msg = ofp.message.flow_add(
+                table_id=table_id,
+                match=match,
+                instructions=instructions,
+                buffer_id=ofp.OFP_NO_BUFFER,
+                priority=priority,
+                flags=ofp.OFPFF_SEND_FLOW_REM,
+                cookie=0x1234,
+                hard_timeout=0,
+                idle_timeout=0)
+        self.uni2nni.append(msg)
+        
+
+        
+    def get_flow_db(self):
+        return (self.uni2nni,self.nni2uni)
+    def set(self,requset):
+        pass
+        
+
+        
+class DEVICE():
+    """
+    device root class
+    """    
+    def __init__(self,agt):
+        self.agt = agt
+        self.lsp = []
+        self.tunnel = []
+        self.pw = []
+        self.status = 0
+        self.agt.register(msg_type = ofp.OFPT_ERROR, handler = self.error_handler)
+        self.netconf_connected = False
+    def error_handler(self,obj,hdr_xid, msg, rawmsg):
+        #print("err:")
+        #print(hdr_xid)
+        #print(msg.err_type)
+        if msg.err_type == ofp.OFPET_FLOW_MOD_FAILED or msg.err_type ==  ofp.OFPET_GROUP_MOD_FAILED :
+            self.status = -1
+    def apply_status(self):
+        return self.status
+    def addLsp(self,lspIndex, inLabel, outLabel, nniPort, dstMac, nniVlan = None,Qos = None):
+        portMac = self.agt.port_desc[nniPort - 1].hw_addr 
+        new_lsp = LSP(lspIndex = lspIndex, inLabel = inLabel, outLabel = outLabel, nniPort = nniPort,\
+            portMac = portMac , dstMac = dstMac, nniVlan = nniVlan | ofdpa.OFDPA_VID_PRESENT,Qos = Qos)
+        (uni2nni , nni2uni) = new_lsp.get_flow_db()
+        for msg in uni2nni:
+            self.agt.message_send(msg)
+        for msg in nni2uni:
+            self.agt.message_send(msg)
+        do_barrier(self.agt)
+        self.lsp.append(new_lsp)
+
+        return new_lsp
+        
+        
+    def addTunnel(self,tunnelIndex,lsp_list, proMode = None):
+    
+        new_tunnel = TUNNEL(tunnelIndex = tunnelIndex,lsp_list = lsp_list,proMode = proMode)
+        (uni2nni , nni2uni) = new_tunnel.get_flow_db()
+        for msg in uni2nni:
+            self.agt.message_send(msg)
+        for msg in nni2uni:
+            self.agt.message_send(msg)
+        do_barrier(self.agt)
+        self.tunnel.append(new_tunnel)
+        return new_tunnel
+
+    def addPw(self,pwIndex,inLabel,outLabel,uniPort,tunnel, uniVlan = [],  Qos = None):
+    
+        new_pw = PW(pwIndex = pwIndex ,inLabel = inLabel,outLabel = outLabel,uniPort = uniPort, uniVlan = uniVlan, tunnel = tunnel, Qos = Qos)
+        (uni2nni , nni2uni) = new_pw.get_flow_db()
+        for msg in uni2nni:
+            self.agt.message_send(msg)
+        for msg in nni2uni:
+            self.agt.message_send(msg)
+        do_barrier(self.agt)
+        self.pw.append(new_pw)
+        return new_pw
+
+
+    def deletePw(self,lsp):
+        pass 
+    def deleteTunnel(self,lsp):
+        pass         
+    def deleteLsp(self,lsp):
+        pass
+    def addOam2Lsp(self,meg,lsp):
+        '''
+        Todo netconf config here
+        '''
+        if self.netconf_connected == False:
+            (rc , info) = self.agt.netconf.connect()
+            if rc != 0:
+                print(info)
+                return -1
+            self.netconf_connected = True
+            
+        (rc , info) = self.agt.netconf.config(file = meg.getFileName())
+        if rc != 0:
+            print(info)
+            return -1
+        time.sleep(1)    
+        targetLsp = None    
+        for tmp in self.lsp:
+            if tmp.lspIndex == lsp.lspIndex:
+                targetLsp = tmp
+        if targetLsp:
+            (uni2nni , nni2uni) = targetLsp.addOam(meg = meg)
+            for msg in uni2nni:
+                self.agt.message_send(msg)
+            for msg in nni2uni:
+                self.agt.message_send(msg)
+            #do_barrier(self.agt)
+
+    def modifyTunnel(self,tunnelIndex,oldLspIndex,newLspIndex):
+        oldLsp = None
+        newLsp = None
+        targetTunnel = None
+        for tunnel in self.tunnel:
+            #print(tunnel.tunnelIndex)
+            if tunnel.tunnelIndex == tunnelIndex:
+                targetTunnel = tunnel
+        if targetTunnel is None:
+            return (-1 , 'tunnel not found')
+        for lsp in self.lsp:
+            if lsp.lspIndex == oldLspIndex:
+                oldLsp = lsp
+            elif lsp.lspIndex == newLspIndex:
+                newLsp = lsp
+        if oldLsp is None or newLsp is None:
+            return (-1,'lsp not found')
+            
+        (uni2nni , nni2uni) = targetTunnel.updateLsp(oldLsp = oldLsp , newLsp = newLsp)
+        for msg in uni2nni:
+            self.agt.message_send(msg)
+        for msg in nni2uni:
+            self.agt.message_send(msg)
+        #do_barrier(self.agt)
+        return (0,'tunnel modif success')
+    def updateMlp(self,mlpIndex,target,proMode = 1):
+        targetTunnel = None
+        for tunnel in self.tunnel:
+            #print(tunnel.tunnelIndex)
+            if tunnel.tunnelIndex == target:
+                targetTunnel = tunnel
+        if targetTunnel is None:
+            return (-1 , 'tunnel not found')
+            
+        (lmep_w,lmep_p) = targetTunnel.getMepInfo()
+        worker = netconf.MLP_HEAD_END(mepId = lmep_w,liveness_port = targetTunnel.livenessPortWorker,\
+            role = 'working')    
+        protector = netconf.MLP_HEAD_END(mepId = lmep_p,liveness_port = targetTunnel.livenessPortProtector,\
+            role = 'protection')
+        
+        print(worker.mepId)
+        print(protector.mepId)
+        
+        if self.mlp.mlpHeadEnds[0].mepId != worker.mepId:
+            '''
+            REMOVE HEAD END
+            '''  
+            self.mlp.removeMlpHeadEnd(mlpHeadEnd = self.mlp.mlpHeadEnds[0])
+            
+            if self.netconf_connected == False:
+                (rc , info) = self.agt.netconf.connect()
+                if rc != 0:
+                    print(info)
+                    return (-1 , 'connect not exist')
+            self.netconf_connected = True
+            
+            (rc , info) = self.agt.netconf.config(file = self.mlp.getFileName())
+            if rc != 0:
+                print(info)
+                return (-1 , 'removeMlpHeadEnd failed')
+
+            '''
+            REPLACE HEAD END
+            '''   
+            self.mlp.replaceMlpHeadEnd(mlpHeadEnd = worker)
+            if self.netconf_connected == False:
+                (rc , info) = self.agt.netconf.connect()
+                if rc != 0:
+                    print(info)
+                    return (-1 , 'connect not exist')
+            self.netconf_connected = True
+            
+            (rc , info) = self.agt.netconf.config(file = self.mlp.getFileName())
+            if rc != 0:
+                print(info)
+                return (-1 , 'repalceMlpHeadEnd failed')
+                        
+            self.mlp.mlpHeadEnds[0] = worker  #updae record
+          
+        if self.mlp.mlpHeadEnds[1].mepId != protector.mepId:
+            '''
+            REMOVE HEAD END
+            ''' 
+            self.mlp.removeMlpHeadEnd(mlpHeadEnd = self.mlp.mlpHeadEnds[1])
+  
+            if self.netconf_connected == False:
+                (rc , info) = self.agt.netconf.connect()
+                if rc != 0:
+                    print(info)
+                    return (-1 , 'connect not exist')
+            self.netconf_connected = True
+            
+            (rc , info) = self.agt.netconf.config(file = self.mlp.getFileName())
+            if rc != 0:
+                print(info)
+                return (-1 , 'removeMlpHeadEnd failed')
+
+            '''
+            REPLACE HEAD END
+            '''            
+            self.mlp.replaceMlpHeadEnd(mlpHeadEnd = protector)
+            if self.netconf_connected == False:
+                (rc , info) = self.agt.netconf.connect()
+                if rc != 0:
+                    print(info)
+                    return (-1 , 'connect not exist')
+            self.netconf_connected = True
+            
+            (rc , info) = self.agt.netconf.config(file = self.mlp.getFileName())
+            if rc != 0:
+                print(info)
+                return (-1 , 'repalceMlpHeadEnd failed')
+                                    
+            self.mlp.mlpHeadEnds[1] = protector #updae record
+        return (0 , 'updateMlp success')
+    def addMlp(self,mlpIndex ,mlpName ,target, proMode = 1):
+        '''
+        Todo netconf config here
+        '''
+        targetTunnel = None
+        for tunnel in self.tunnel:
+            #print(tunnel.tunnelIndex)
+            if tunnel.tunnelIndex == target:
+                targetTunnel = tunnel
+        if targetTunnel is None:
+            return (-1 , 'tunnel not found')
+        (lmep_w,lmep_p) = targetTunnel.getMepInfo()
+        worker = netconf.MLP_HEAD_END(mepId = lmep_w,liveness_port = targetTunnel.livenessPortWorker,\
+            role = 'working')    
+        protector = netconf.MLP_HEAD_END(mepId = lmep_p,liveness_port = targetTunnel.livenessPortProtector,\
+            role = 'protection')
+        ends = [worker,protector]        
+        self.mlp = netconf.MLP(mlpIndex = mlpIndex,mlpName = mlpName,mlpHeadEnds=ends)
+
+        if self.netconf_connected == False:
+            (rc , info) = self.agt.netconf.connect()
+            if rc != 0:
+                print(info)
+                return (-1 , 'connect not exist')
+            self.netconf_connected = True
+            
+        (rc , info) = self.agt.netconf.config(file = self.mlp.getFileName())
+        if rc != 0:
+            print(info)
+            return (-1 , 'config failed')
+            
+        return (0 , 'add success')
+           
+    def removeOamFromLsp(self,lsp):
+        pass     
+    def addOam2Pw(self,lsp):
+        pass        
+    def removeOamFromPw(self,lsp):
+        pass  
+
+
+
+        
+class vpwsPermanetPro(advanced_tests.AdvancedProtocol):
+    """
+    vpws test case for lsp  permanent protection 
+    """      
     def runTest(self):
-        while True:
-            pass
+        self.pe1 = None
+        self.pe2 = None 
+        
+        for agt in self.controller.device_agents:
+            if agt.dpid == custom.PE1_CONFIG['DPID']: 
+                self.pe1 = DEVICE(agt = agt)
+            elif agt.dpid == custom.PE2_CONFIG["DPID"]:
+                self.pe2 = DEVICE(agt = agt)  
+
+
+        self.active = True
+        while self.active:
+            cmd = raw_input('cmd: ')
+            print(cmd)
+            if cmd == 'addmlp':
+                self.addG8131Mlp()
+            elif cmd == 'basic':
+                self.addBasicVpws()
+            elif cmd == 'uw':
+                self.modifyG8131MlpWorker()
+            elif cmd == 'exit':
+                self.active = False                
+                
+    def addBasicVpws(self):
+        uniPort = 3
+        uniVlan = [10]
+        nniPort_w = 4
+        nniPort_p = 5
+        nniPort_x = 6
+        nniVlan = 100
+        pe1PortMac = self.pe1.agt.port_desc[nniPort_w].hw_addr   
+        pe2PortMac = self.pe2.agt.port_desc[nniPort_w].hw_addr 
+
+        '''
+        config self.pe1
+        '''
+        lsp_w = self.pe1.addLsp(lspIndex = 1, inLabel = 1000,outLabel = 2000,nniPort = nniPort_w,nniVlan = nniVlan,\
+            dstMac = pe2PortMac)
+        lsp_p = self.pe1.addLsp(lspIndex = 2, inLabel = 1001,outLabel = 2001,nniPort = nniPort_p,nniVlan = nniVlan,\
+            dstMac = pe2PortMac)
+        lsp_x = self.pe1.addLsp(lspIndex = 3, inLabel = 1002,outLabel = 2002,nniPort = nniPort_x,nniVlan = nniVlan,\
+            dstMac = pe2PortMac)
             
+        tunnel = self.pe1.addTunnel(tunnelIndex = 1, lsp_list = [lsp_w,lsp_p], proMode = 1)
+        
+        pw = self.pe1.addPw(pwIndex = 1,inLabel = 10 ,outLabel = 20,uniPort = uniPort, uniVlan = uniVlan, tunnel =   tunnel)
+      
+        meg_w = netconf.MEG(megIndex = 1,megName ='lspmeg-w' , lmepid = 10 ,rmepid = 20 )
+        self.pe1.addOam2Lsp(lsp = lsp_w, meg = meg_w)
+ 
+        meg_p = netconf.MEG(megIndex = 2,megName ='lspmeg-p' , lmepid = 30 ,rmepid = 40 )
+        self.pe1.addOam2Lsp(lsp = lsp_p, meg = meg_p)
+
+        meg_x = netconf.MEG(megIndex = 3,megName ='lspmeg-x' , lmepid = 50 ,rmepid = 60 )
+        self.pe1.addOam2Lsp(lsp = lsp_x, meg = meg_x)
+
+        
+        self.assertEqual(self.pe1.apply_status(), 0,
+         'response status != expect status 0')
+        
+        
+        '''
+        config pe2
+
+        lsp_w = self.pe2.addLsp(lspIndex = 1, inLabel = 2000,outLabel = 1000,nniPort = nniPort_w,
+            nniVlan = nniVlan,dstMac = pe1PortMac)
+        lsp_p = self.pe2.addLsp(lspIndex = 2, inLabel = 2001,outLabel = 1001,nniPort = nniPort_p,
+            nniVlan = nniVlan,dstMac = pe1PortMac)
+        lsp_x = self.pe2.addLsp(lspIndex = 3, inLabel = 2002,outLabel = 1002,nniPort = nniPort_x,
+            nniVlan = nniVlan,dstMac = pe1PortMac)
             
-            
+        tunnel = self.pe2.addTunnel(tunnelIndex = 1, lsp_list = [lsp_w,lsp_p], proMode = 1)
+        
+        pw = self.pe2.addPw(pwIndex = 1,inLabel = 20 ,outLabel = 10,uniPort = uniPort, uniVlan = uniVlan, tunnel =   tunnel)
+        
+        meg_w = netconf.MEG(megIndex = 1,megName ='lspmeg-w' , lmepid = 20 ,rmepid = 10 )
+        self.pe2.addOam2Lsp(lsp = lsp_w, meg = meg_w)
+ 
+        meg_p = netconf.MEG(megIndex = 2,megName ='lspmeg-p' , lmepid = 40 ,rmepid = 30 )
+        self.pe2.addOam2Lsp(lsp = lsp_p, meg = meg_p)
+
+        meg_x = netconf.MEG(megIndex = 3,megName ='lspmeg-x' , lmepid = 60 ,rmepid = 50 )
+        self.pe2.addOam2Lsp(lsp = lsp_x, meg = meg_x)
+        
+        self.assertEqual(self.pe2.apply_status(), 0,
+                 'response status != expect status 0')
+        '''                  
+    def addG8131Mlp(self): 
+        (rc,info) = self.pe1.addMlp(mlpIndex = 1,mlpName = 'lsp-aps1',target = 1)
+        print('addG8131Mlp:'+ str(rc) + '-' + info)
+        '''
+        (rc,info) = self.pe2.addMlp(mlpIndex = 1,mlpName = 'lsp-aps1',target = 1)
+        print('addG8131Mlp:'+ str(rc) + '-' + info)
+        '''
+    def modifyG8131MlpWorker(self): 
+        (rc,info) = self.pe1.modifyTunnel(tunnelIndex = 1,oldLspIndex = 1,newLspIndex = 3)
+        print('modifyTunnel:'+ str(rc) + '-' + info)
+        (rc,info) = self.pe1.updateMlp(mlpIndex = 1,target = 1)
+        print('updateMlp:'+ str(rc) + '-' + info)
+    '''
+                    self.pe2.modifyTunnel(oldLspIndex = 1,newLspIndex = 3)
+        (rc,info) = self.pe2.modifyMlp(mlpIndex = 1,oldMepId = 20,newMepId = 60)
+        print('modifyG8131Mlp:'+ str(rc) + '-' + info)
+    '''
+        
 class vpws_basic_pe():
     """
     root device 
@@ -725,6 +1114,7 @@ class vpws_basic_pe():
         self.idle_timeout=0
         self.port = self.pe.port_desc
         
+
     def create_new_lsp(self):
         
         ####################################################################################
