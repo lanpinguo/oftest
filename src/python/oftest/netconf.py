@@ -161,13 +161,13 @@ class MEG():
         self.lmepid = lmepid
         self.rmepid = rmepid 
         try:
-            tree = ET.parse("/work/cmcc_support/ofconfig/create_tpoam_template.xml")
-            root = tree.getroot()
+            self.tree = ET.parse("ofconfig/tpoam_template.xml")
+            self.root = self.tree.getroot()
         except Exception, e:
-            print("Error:cannot parse file:create_tpoam_template.xml")
+            print("Error:cannot parse file:tpoam_template.xml")
             sys.exit(1)
-        self.fileName = '/work/cmcc_support/ofconfig/tmp/tpoam' + self.megName + '.xml'    
-        for res in root.findall('{urn:onf:config:yang}resources'):
+        self.fileName = 'ofconfig/tmp/tpoam' + self.megName + '.xml'    
+        for res in self.root.findall('{urn:onf:config:yang}resources'):
             g8131_meg = res.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}G.8113.1_MEG')
             resource_id = g8131_meg.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}resource-id') 
             resource_id.text = str('mpls_meg_'+str(self.megIndex))
@@ -189,7 +189,36 @@ class MEG():
             openFlowMpId.text = str(self.rmepid)
             mepId = Remote_MEP.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}mepId')
             mepId.text = str(self.rmepid)
-        tree.write(self.fileName)    
+        self.tree.write(self.fileName) 
+    def delete(self):
+        self.fileName = 'ofconfig/tmp/tpoam_delete_' + self.megName + '.xml'    
+        for res in self.root.findall('{urn:onf:config:yang}resources'):
+            g8131_meg = res.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}G.8113.1_MEG')
+            g8131_meg.attrib['{urn:ietf:params:xml:ns:netconf:base:1.0}operation'] = 'delete'
+            #print(g8131_meg.attrib)
+            resource_id = g8131_meg.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}resource-id') 
+            resource_id.text = str('mpls_meg_'+str(self.megIndex))
+            index = g8131_meg.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}index')
+            index.text = str(self.megIndex)
+            name = g8131_meg.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}name')
+            name.text = self.megName
+            
+            
+            Local_MEP = g8131_meg.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}Local_MEP')
+            openFlowMpId = Local_MEP.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}openFlowMpId')
+            openFlowMpId.text = str(self.lmepid)
+            mepId = Local_MEP.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}mepId')
+            mepId.text = str(self.lmepid)
+            
+            
+            Remote_MEP = g8131_meg.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}Remote_MEP')
+            openFlowMpId = Remote_MEP.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}openFlowMpId')
+            openFlowMpId.text = str(self.rmepid)
+            mepId = Remote_MEP.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}mepId')
+            mepId.text = str(self.rmepid)
+        self.tree.write(self.fileName)   
+        return self.fileName
+        
     def getFileName(self):
         return self.fileName
 
@@ -209,12 +238,12 @@ class MLP():
         self.mlpHeadEnds = mlpHeadEnds
 
         try:
-            tree = ET.parse("/work/cmcc_support/ofconfig/create_protection_template.xml")
+            tree = ET.parse("ofconfig/protection_template.xml")
             root = tree.getroot()
         except Exception, e:
-            print("Error:cannot parse file:create_protection_template.xml")
+            print("Error:cannot parse file:protection_template.xml")
             sys.exit(1)
-        self.fileName = '/work/cmcc_support/ofconfig/tmp/tpoam_' + self.mlpName + '.xml'    
+        self.fileName = 'ofconfig/tmp/tpoam_' + self.mlpName + '.xml'    
         for res in root.findall('{urn:onf:config:yang}resources'):
             MLP_ProtectionGroup = res.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}MLP_ProtectionGroup')
             resource_id = MLP_ProtectionGroup.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}resource-id') 
@@ -241,12 +270,12 @@ class MLP():
     def removeMlpHeadEnd(self,mlpHeadEnd):
 
         try:
-            tree = ET.parse("/work/cmcc_support/ofconfig/remove_protection_mep_template.xml")
+            tree = ET.parse("ofconfig/remove_protection_mep_template.xml")
             root = tree.getroot()
         except Exception, e:
             print("Error:cannot parse file:remove_protection_mep_template.xml")
             sys.exit(1)
-        self.fileName = '/work/cmcc_support/ofconfig/tmp/tpoam_remove_mep_' + self.mlpName + '.xml'    
+        self.fileName = 'ofconfig/tmp/tpoam_remove_mep_' + self.mlpName + '.xml'    
         for res in root.findall('{urn:onf:config:yang}resources'):
             MLP_ProtectionGroup = res.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}MLP_ProtectionGroup')
             resource_id = MLP_ProtectionGroup.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}resource-id') 
@@ -261,12 +290,12 @@ class MLP():
     def replaceMlpHeadEnd(self,mlpHeadEnd):
 
         try:
-            tree = ET.parse("/work/cmcc_support/ofconfig/replace_protection_mep_template.xml")
+            tree = ET.parse("ofconfig/replace_protection_mep_template.xml")
             root = tree.getroot()
         except Exception, e:
             print("Error:cannot parse file:replace_protection_mep_template.xml")
             sys.exit(1)
-        self.fileName = '/work/cmcc_support/ofconfig/tmp/tpoam_replace_mep_' + self.mlpName + '.xml'    
+        self.fileName = 'ofconfig/tmp/tpoam_replace_mep_' + self.mlpName + '.xml'    
         for res in root.findall('{urn:onf:config:yang}resources'):
             MLP_ProtectionGroup = res.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}MLP_ProtectionGroup')
             resource_id = MLP_ProtectionGroup.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}resource-id') 
@@ -281,12 +310,61 @@ class MLP():
             role = mlpEnd.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}role')
             role.text = mlpHeadEnd.role
         tree.write(self.fileName) 
+        
+    def delete(self):
+
+        try:
+            tree = ET.parse("ofconfig/protection_template.xml")
+            root = tree.getroot()
+        except Exception, e:
+            print("Error:cannot parse file:protection_template.xml")
+            sys.exit(1)
+        self.fileName = 'ofconfig/tmp/mlp_delete_' + self.mlpName + '.xml'    
+        for res in root.findall('{urn:onf:config:yang}resources'):
+            MLP_ProtectionGroup = res.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}MLP_ProtectionGroup')
+            MLP_ProtectionGroup.attrib['{urn:ietf:params:xml:ns:netconf:base:1.0}operation'] = 'delete'
+            resource_id = MLP_ProtectionGroup.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}resource-id') 
+            resource_id.text = str('protection_group_'+str(self.mlpIndex))
+            index = MLP_ProtectionGroup.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}index')
+            index.text = str(self.mlpIndex)
+            name = MLP_ProtectionGroup.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}name')
+            name.text = self.mlpName
+            
+            
+            mlpHeadEnd = MLP_ProtectionGroup.findall('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}mlp-head-end-config')
+            liveness_port = mlpHeadEnd[0].find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}liveness-logical-port')
+            liveness_port.text = str(self.mlpHeadEnds[0].liveness_port)
+            mepId = mlpHeadEnd[0].find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}mep')
+            mepId.text = str(self.mlpHeadEnds[0].mepId)
+
+            liveness_port = mlpHeadEnd[1].find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}liveness-logical-port')
+            liveness_port.text = str(self.mlpHeadEnds[1].liveness_port)
+            mepId = mlpHeadEnd[1].find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}mep')
+            mepId.text = str(self.mlpHeadEnds[1].mepId)            
+        tree.write(self.fileName)  
+        return self.fileName
 
         
 if __name__ == "__main__":
     """
     self test
     """
+
     ends = [MLP_HEAD_END(mepId = 11,liveness_port = 0xF00000008),MLP_HEAD_END(mepId = 12,liveness_port = 0xF00000009)]        
     mlp = MLP(mlpIndex = 5,mlpName = 'MLP_TEST_1',mlpHeadEnds=ends)
     print(mlp.getFileName())
+    mlp.delete()
+    print(mlp.getFileName())
+
+    
+    '''   
+    meg = MEG(megIndex = 5,megName = 'meg',lmepid = 20 ,rmepid = 30)
+    print(meg.getFileName())
+    meg.delete()
+    print(meg.getFileName())
+    '''    
+    
+    
+    
+    
+    

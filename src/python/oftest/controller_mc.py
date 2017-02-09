@@ -39,6 +39,7 @@ from threading import Condition
 import ofutils
 import loxi
 import device_agent as dev_agt
+import netconf as netconf
 
 # Configured openflow version
 import ofp as cfg_ofp
@@ -195,13 +196,37 @@ class ControllerMc(Thread):
             self.logger.info(self.host+":"+str(self.port)+": Incoming connection from "+str(addr))
 
             with self.connect_cv:
-                self.device = dev_agt.DeviceAgent()
-                (self.device.switch_socket, self.device.switch_addr) = (sock, addr)
-                self.device.switch_socket.setsockopt(socket.IPPROTO_TCP,socket.TCP_NODELAY, True)
-                self.device.start()
+                device = dev_agt.DeviceAgent()
+                (device.switch_socket, device.switch_addr) = (sock, addr)
+                device.switch_socket.setsockopt(socket.IPPROTO_TCP,socket.TCP_NODELAY, True)
+                device.start()
                 if self.initial_hello:
-                    self.device.message_send(cfg_ofp.message.hello())
-                self.device_agents.append(self.device)
+                    device.message_send(cfg_ofp.message.hello())
+                #print('new socket')
+                logging.info("Connected " + str(device.switch_addr))
+                logging.info("netconf will create at " + str(device.switch_addr[0]))
+                request = cfg_ofp.message.features_request()
+                reply, pkt = device.transact(request)
+                if reply is None:
+                    logging.info("Did not complete features_request for handshake")
+                    return -1
+                               
+                if reply.version == 1:
+                    self.supported_actions = reply.actions
+                    logging.info("Supported actions: " + hex(self.supported_actions))
+                device.dpid = reply.datapath_id
+                device.netconf = netconf.Netconf(switch_addr = device.switch_addr[0])
+                
+                
+                request = cfg_ofp.message.port_desc_stats_request()
+                reply, pkt = device.transact(request)
+                if reply is None:
+                    logging.info("Did not complete port_desc_stats_request for handshake")
+                    return -1
+                device.port_desc = reply.entries
+                    
+                    
+                self.device_agents.append(device)
                 self.connect_cv.notify() # Notify anyone waiting
 
             # Prevent further connections
@@ -311,9 +336,10 @@ class ControllerMc(Thread):
                                   self.switch)
                 self.active = False
         else:
-            with self.connect_cv:
-                ofutils.timed_wait(self.connect_cv, lambda: True if len(self.device_agents) == 2 else None,
-                                   timeout=timeout)
+            pass
+#            with self.connect_cv:
+#                ofutils.timed_wait(self.connect_cv, lambda: True if len(self.device_agents) != 0 else None,
+#                                   timeout=timeout)
 
         return len(self.device_agents)
         

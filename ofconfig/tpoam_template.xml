@@ -1,0 +1,28 @@
+﻿<capable-switch xmlns="urn:onf:config:yang"  xmlns:a="urn:ietf:params:xml:ns:netconf:base:1.0">
+  <id>openvswitch</id>
+  <resources>
+    <G.8113.1_MEG xmlns="http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam"  a:operation="create" >
+    	<resource-id>mpls_meg_1</resource-id>
+      <index>1</index>    
+      <name>meglsp1</name>
+      <managedInstanceType>lsp</managedInstanceType>
+      <mipCreation>none</mipCreation>
+      <Local_MEP>
+      		<openFlowMpId>10</openFlowMpId>
+            <serveropenFlowMpId>0</serveropenFlowMpId>
+      		<mepId>10</mepId>
+      		<direction>down</direction>
+      		<enable>true</enable>
+      		<CCM>
+      			<period>3.33MS</period>
+      			<enable>true</enable>
+      			<phb>CS7</phb>
+      		</CCM>
+      </Local_MEP>
+      <Remote_MEP>
+      		<openFlowMpId>30</openFlowMpId>
+      		<mepId>30</mepId>
+      </Remote_MEP>
+	</G.8113.1_MEG>
+  </resources>
+</capable-switch>

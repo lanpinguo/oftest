@@ -1,0 +1,14 @@
+<capable-switch xmlns="urn:onf:config:yang"  xmlns:a="urn:ietf:params:xml:ns:netconf:base:1.0">
+  <id>openvswitch</id>
+  <resources>
+    <MLP_ProtectionGroup xmlns="http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam" >
+      <resource-id>protection_group_1</resource-id>
+
+      <mlp-head-end-config a:operation="delete">
+        <liveness-logical-port>4026531840</liveness-logical-port>
+      </mlp-head-end-config>
+
+    </MLP_ProtectionGroup>
+  </resources>
+
+</capable-switch>

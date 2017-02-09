@@ -48,13 +48,13 @@ class AdvancedProtocol(AdvancedTest):
 
             # By default, respond to echo requests
             self.controller.keep_alive = True
-
+            ''' 
             if not self.controller.active:
                 raise Exception("Controller startup failed")
             if len(self.controller.device_agents) == 0:
                 print(len(self.controller.device_agents))
                 raise Exception("Controller startup failed (no switch addr)")
-                
+               
             for d in self.controller.device_agents:
                 logging.info("Connected " + str(d.switch_addr))
                 logging.info("netconf will create at " + str(d.switch_addr[0]))
@@ -73,7 +73,7 @@ class AdvancedProtocol(AdvancedTest):
                 reply, pkt = d.transact(request)
                 d.port_desc = reply.entries
                 #print(reply.entries[0].hw_addr)
-
+            '''
                 
         except:
             self.controller.kill()

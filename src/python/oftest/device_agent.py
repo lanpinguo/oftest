@@ -170,7 +170,7 @@ class DeviceAgent(Thread):
         """
 
         self.dbg_state = "running"
-        print("\r\ndevice_agent " + str(self.name) + "  " + self.dbg_state)
+        print("device_agent: " + str(self.name) + "   --socket " + str(self.switch_addr))
         while self.active:
             try:
                 ready, sel_out, sel_err = select.select([self.switch_socket], [], [], 1)
