@@ -6486,7 +6486,7 @@ class mpls_tp_mpls_l2_port(oxm):
         packed.append(struct.pack("!L", self.type_len))
         packed.append(struct.pack("!L", self.experimenter_id))
         packed.append(struct.pack("!L", self.value))
-        packed.append(struct.pack("!L", self.value_mask))
+        #packed.append(struct.pack("!L", self.value_mask))
         return ''.join(packed)
 
     @staticmethod
@@ -6497,7 +6497,7 @@ class mpls_tp_mpls_l2_port(oxm):
         _experimenter_id = reader.read("!L")[0]
         assert(_experimenter_id == 0x00001018)
         obj.value = reader.read("!L")[0]
-        obj.value_mask = reader.read("!L")[0]
+        #obj.value_mask = reader.read("!L")[0]
         return obj
 
     def __eq__(self, other):
@@ -6588,7 +6588,7 @@ class mpls_tp_qos_index(oxm):
         packed = []
         packed.append(struct.pack("!L", self.type_len))
         packed.append(struct.pack("!L", self.experimenter_id))
-        packed.append(struct.pack("!H", self.value))
+        packed.append(struct.pack("!B", self.value))
         return ''.join(packed)
 
     @staticmethod
@@ -6598,7 +6598,7 @@ class mpls_tp_qos_index(oxm):
         assert(_type_len == 0xffff0a05)
         _experimenter_id = reader.read("!L")[0]
         assert(_experimenter_id == 0x00001018)
-        obj.value = reader.read("!H")[0]
+        obj.value = reader.read("!B")[0]
 
         return obj
 

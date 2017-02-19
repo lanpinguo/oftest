@@ -192,7 +192,7 @@ meter_band.subtypes[2] = dscp_remark
 class experimenter(meter_band):
     type = 65535
 
-    def __init__(self, rate=None, burst_size=None, experimenter=None):
+    def __init__(self, rate=None, burst_size=None, experimenter=None,extra=None):
         if rate != None:
             self.rate = rate
         else:
@@ -205,6 +205,10 @@ class experimenter(meter_band):
             self.experimenter = experimenter
         else:
             self.experimenter = 0
+        if extra != None:
+            self.extra = extra
+        else:
+            self.extra = []
         return
 
     def pack(self):
@@ -214,6 +218,8 @@ class experimenter(meter_band):
         packed.append(struct.pack("!L", self.rate))
         packed.append(struct.pack("!L", self.burst_size))
         packed.append(struct.pack("!L", self.experimenter))
+        for c in self.extra:
+            packed.append(struct.pack("!B", c))
         length = sum([len(x) for x in packed])
         packed[1] = struct.pack("!H", length)
         return ''.join(packed)
@@ -229,6 +235,8 @@ class experimenter(meter_band):
         obj.rate = reader.read("!L")[0]
         obj.burst_size = reader.read("!L")[0]
         obj.experimenter = reader.read("!L")[0]
+        for i in range(0,(_len - 12)):
+            obj.extra[i] = reader.read("!B")[0]
         return obj
 
     def __eq__(self, other):
@@ -236,6 +244,7 @@ class experimenter(meter_band):
         if self.rate != other.rate: return False
         if self.burst_size != other.burst_size: return False
         if self.experimenter != other.experimenter: return False
+        if self.extra != other.extra: return False
         return True
 
     def pretty_print(self, q):
@@ -251,6 +260,7 @@ class experimenter(meter_band):
                 q.text(","); q.breakable()
                 q.text("experimenter = ");
                 q.text("%#x" % self.experimenter)
+                q.text("%#x" % self.extra)
             q.breakable()
         q.text('}')
 
