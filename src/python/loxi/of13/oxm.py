@@ -6904,3 +6904,51 @@ class mpls_tp_ttl(oxm):
         q.text('}')
 
 oxm.subtypes[0xffff0e05] = mpls_tp_ttl
+
+
+class mpls_tp_protection_index(oxm):
+    type_len = 0xffff2a05
+    experimenter_id = 0x00001018
+
+    def __init__(self, value=None):
+        if value != None:
+            self.value = value
+        else:
+            self.value = 0
+
+        return
+
+    def pack(self):
+        packed = []
+        packed.append(struct.pack("!L", self.type_len))
+        packed.append(struct.pack("!L", self.experimenter_id))
+        packed.append(struct.pack("!B", self.value))
+        return ''.join(packed)
+
+    @staticmethod
+    def unpack(reader):
+        obj = mpls_tp_protection_index()
+        _type_len = reader.read("!L")[0]
+        assert(_type_len == 0xffff2a05)
+        _experimenter_id = reader.read("!L")[0]
+        assert(_experimenter_id == 0x00001018)
+        obj.value = reader.read("!B")[0]
+
+        return obj
+
+    def __eq__(self, other):
+        if type(self) != type(other): return False
+        if self.value != other.value: return False
+        return True
+
+    def pretty_print(self, q):
+        q.text("mpls_tp_protection_index {")
+        with q.group():
+            with q.indent(2):
+                q.breakable()
+                q.text("value = ");
+                q.text("%#x" % self.value)
+            q.breakable()
+        q.text('}')
+
+oxm.subtypes[0xffff2a05] = mpls_tp_protection_index

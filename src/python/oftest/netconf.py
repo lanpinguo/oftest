@@ -155,11 +155,12 @@ class MEG():
     """
     meg root class
     """
-    def __init__(self,megIndex,megName,lmepid,rmepid):
+    def __init__(self,megIndex,megName,lmepid,rmepid,type=1):
         self.megIndex = megIndex
         self.megName = megName
         self.lmepid = lmepid
-        self.rmepid = rmepid 
+        self.rmepid = rmepid
+        self.type = type 
         try:
             self.tree = ET.parse("ofconfig/tpoam_template.xml")
             self.root = self.tree.getroot()
@@ -175,8 +176,12 @@ class MEG():
             index.text = str(self.megIndex)
             name = g8131_meg.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}name')
             name.text = self.megName
-            
-            
+            if self.type == 1:
+                managedInstanceType = g8131_meg.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}managedInstanceType')
+                managedInstanceType.text = 'lsp'            
+            elif self.type == 2:
+                managedInstanceType = g8131_meg.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}managedInstanceType')
+                managedInstanceType.text = 'pw' 
             Local_MEP = g8131_meg.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}Local_MEP')
             openFlowMpId = Local_MEP.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}openFlowMpId')
             openFlowMpId.text = str(self.lmepid)
@@ -202,7 +207,12 @@ class MEG():
             index.text = str(self.megIndex)
             name = g8131_meg.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}name')
             name.text = self.megName
-            
+            if self.type == 1:
+                managedInstanceType = g8131_meg.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}managedInstanceType')
+                managedInstanceType.text = 'lsp'            
+            elif self.type == 2:
+                managedInstanceType = g8131_meg.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}managedInstanceType')
+                managedInstanceType.text = 'pw'             
             
             Local_MEP = g8131_meg.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}Local_MEP')
             openFlowMpId = Local_MEP.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}openFlowMpId')
