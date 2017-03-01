@@ -9314,6 +9314,1157 @@ class bsn_vrf_counter_stats_request(bsn_stats_request):
 
 bsn_stats_request.subtypes[15] = bsn_vrf_counter_stats_request
 
+class sptn_header(experimenter):
+    subtypes = {}
+
+    version = 4
+    type = 4
+    experimenter = 4120
+
+    def __init__(self, xid=None, subtype=None):
+        if xid != None:
+            self.xid = xid
+        else:
+            self.xid = None
+        if subtype != None:
+            self.subtype = subtype
+        else:
+            self.subtype = 0
+        return
+
+    def pack(self):
+        packed = []
+        packed.append(struct.pack("!B", self.version))
+        packed.append(struct.pack("!B", self.type))
+        packed.append(struct.pack("!H", 0)) # placeholder for length at index 2
+        packed.append(struct.pack("!L", self.xid))
+        packed.append(struct.pack("!L", self.experimenter))
+        packed.append(struct.pack("!L", self.subtype))
+        length = sum([len(x) for x in packed])
+        packed[2] = struct.pack("!H", length)
+        return ''.join(packed)
+
+    @staticmethod
+    def unpack(reader):
+        subtype, = reader.peek('!L', 12)
+        subclass = bsn_header.subtypes.get(subtype)
+        if subclass:
+            return subclass.unpack(reader)
+
+        obj = bsn_header()
+        _version = reader.read("!B")[0]
+        assert(_version == 4)
+        _type = reader.read("!B")[0]
+        assert(_type == 4)
+        _length = reader.read("!H")[0]
+        orig_reader = reader
+        reader = orig_reader.slice(_length, 4)
+        obj.xid = reader.read("!L")[0]
+        _experimenter = reader.read("!L")[0]
+        assert(_experimenter == 4120)
+        obj.subtype = reader.read("!L")[0]
+        return obj
+
+    def __eq__(self, other):
+        if type(self) != type(other): return False
+        if self.xid != other.xid: return False
+        if self.subtype != other.subtype: return False
+        return True
+
+    def pretty_print(self, q):
+        q.text("sptn_header {")
+        with q.group():
+            with q.indent(2):
+                q.breakable()
+                q.text("xid = ");
+                if self.xid != None:
+                    q.text("%#x" % self.xid)
+                else:
+                    q.text('None')
+            q.breakable()
+        q.text('}')
+
+experimenter.subtypes[4120] = sptn_header
+
+class sptn_mpls_vpn_label_remark_action_mod(sptn_header):
+    subtypes = {}
+    version = 4
+    type = 4
+    experimenter = 4120
+    exptype = 6
+
+
+    def __init__(self, xid=None, _command=None,index=None,traffic_class=None,color=None,mpls_tc=None,vlan_pcp=None,vlan_dei=None):
+        if xid != None:
+            self.xid = xid
+        else:
+            self.xid = None
+            
+        if _command != None:
+            self._command = _command
+        else:
+            self._command = 0
+            
+        if index != None:
+            self.index = index
+        else:
+            self.index = 0            
+        return
+        if traffic_class != None:
+            self.traffic_class = traffic_class
+        else:
+            self.traffic_class = 0
+        if color != None:
+            self.color = color
+        else:
+            self.color = 0
+        if mpls_tc != None:
+            self.mpls_tc = mpls_tc
+        else:
+            self.mpls_tc = 0
+        if vlan_pcp != None:
+            self.vlan_pcp = vlan_pcp
+        else:
+            self.vlan_pcp = 0
+        if vlan_dei != None:
+            self.vlan_dei = vlan_dei
+        else:
+            self.vlan_dei = 0 
+            
+        self.pad = 0
+        
+    def pack(self):
+        packed = []
+        packed.append(struct.pack("!B", self.version))
+        packed.append(struct.pack("!B", self.type))
+        packed.append(struct.pack("!H", 0)) # placeholder for length at index 2
+        packed.append(struct.pack("!L", self.xid))
+        packed.append(struct.pack("!L", self.experimenter))
+        packed.append(struct.pack("!L", self.exptype))
+        packed.append(struct.pack("!L", self._command))
+        packed.append(struct.pack("!L", self.index))
+        packed.append(struct.pack("!B", self.traffic_class))
+        packed.append(struct.pack("!B", self.color))
+        packed.append(struct.pack("!B", self.mpls_tc))
+        packed.append(struct.pack("!B", self.vlan_pcp))
+        packed.append(struct.pack("!B", self.vlan_dei))
+        packed.append(struct.pack("!B", self.pad))                                               
+        packed.append(struct.pack("!B", self.pad))
+        packed.append(struct.pack("!B", self.pad))  
+        length = sum([len(x) for x in packed])
+        packed[2] = struct.pack("!H", length)
+        return ''.join(packed)
+
+    @staticmethod
+    def unpack(reader):
+        obj = bsn_vlan_counter_clear()
+        _version = reader.read("!B")[0]
+        assert(_version == 4)
+        _type = reader.read("!B")[0]
+        assert(_type == 4)
+        _length = reader.read("!H")[0]
+        orig_reader = reader
+        reader = orig_reader.slice(_length, 4)
+        obj.xid = reader.read("!L")[0]
+        _experimenter = reader.read("!L")[0]
+        assert(_experimenter == 4120)
+        _exptype = reader.read("!L")[0]
+        assert(_exptype == 6)
+        obj.command = reader.read("!L")[0]
+        obj.index = reader.read("!L")[0]
+        obj.traffic_class = reader.read("!B")[0]
+        obj.color = reader.read("!B")[0]
+        obj.mpls_tc = reader.read("!B")[0]
+        obj.vlan_pcp = reader.read("!B")[0]
+        obj.vlan_dei = reader.read("!B")[0] 
+        _pad = reader.read("!B")[0]                                
+        _pad = reader.read("!B")[0] 
+        _pad = reader.read("!B")[0] 
+        return obj
+
+    def __eq__(self, other):
+        if type(self) != type(other): return False
+        if self.xid != other.xid: return False
+        if self._command != other._command: return False
+        if self.index != other.index: return False
+        if self.traffic_class != other.traffic_class: return False
+        if self.color != other.color: return False
+        if self.mpls_tc != other.mpls_tc: return False
+        if self.vlan_pcp != other.vlan_pcp: return False
+        if self.vlan_dei != other.vlan_dei: return False
+        return True
+
+    def pretty_print(self, q):
+        q.text("sptn_mpls_vpn_label_remark_action_mod {")
+        with q.group():
+            with q.indent(2):
+                q.breakable()
+                q.text("xid = ");
+                if self.xid != None:
+                    q.text("%#x" % self.xid)
+                else:
+                    q.text('None')
+                q.text(","); q.breakable()
+                q.text("index = ");
+                q.text("%#x" % self.index)
+                q.text(","); q.breakable()
+                q.text("traffic_class = ");
+                q.text("%#x" % self.traffic_class)
+                q.text(","); q.breakable()
+                q.text("color = ");
+                q.text("%#x" % self.color)
+                q.text(","); q.breakable()
+                q.text("mpls_tc = ");
+                q.text("%#x" % self.mpls_tc)
+                q.text(","); q.breakable()
+                q.text("vlan_pcp = ");
+                q.text("%#x" % self.vlan_pcp)
+                q.text(","); q.breakable()
+                q.text("vlan_dei = ");
+                q.text("%#x" % self.vlan_dei)                                                                
+            q.breakable()
+        q.text('}')
+
+sptn_header.subtypes[6] = sptn_mpls_vpn_label_remark_action_mod
+
+class sptn_mpls_vpn_label_remark_action_add(sptn_mpls_vpn_label_remark_action_mod):
+
+    _command = 0
+
+    def __init__(self, xid=None,index=None,traffic_class=None,color=None,mpls_tc=None,vlan_pcp=None,vlan_dei=None):
+        if xid != None:
+            self.xid = xid
+        else:
+            self.xid = None
+          
+        if index != None:
+            self.index = index
+        else:
+            self.index = 0            
+        return
+        if traffic_class != None:
+            self.traffic_class = traffic_class
+        else:
+            self.traffic_class = 0
+        if color != None:
+            self.color = color
+        else:
+            self.color = 0
+        if mpls_tc != None:
+            self.mpls_tc = mpls_tc
+        else:
+            self.mpls_tc = 0
+        if vlan_pcp != None:
+            self.vlan_pcp = vlan_pcp
+        else:
+            self.vlan_pcp = 0
+        if vlan_dei != None:
+            self.vlan_dei = vlan_dei
+        else:
+            self.vlan_dei = 0 
+            
+        self.pad = 0
+        
+    def pack(self):
+        packed = []
+        packed.append(struct.pack("!B", self.version))
+        packed.append(struct.pack("!B", self.type))
+        packed.append(struct.pack("!H", 0)) # placeholder for length at index 2
+        packed.append(struct.pack("!L", self.xid))
+        packed.append(struct.pack("!L", self.experimenter))
+        packed.append(struct.pack("!L", self.exptype))
+        packed.append(struct.pack("!L", self._command))
+        packed.append(struct.pack("!L", self.index))
+        packed.append(struct.pack("!B", self.traffic_class))
+        packed.append(struct.pack("!B", self.color))
+        packed.append(struct.pack("!B", self.mpls_tc))
+        packed.append(struct.pack("!B", self.vlan_pcp))
+        packed.append(struct.pack("!B", self.vlan_dei))
+        packed.append(struct.pack("!B", self.pad))                                               
+        packed.append(struct.pack("!B", self.pad))
+        packed.append(struct.pack("!B", self.pad))  
+        length = sum([len(x) for x in packed])
+        packed[2] = struct.pack("!H", length)
+        return ''.join(packed)
+
+    @staticmethod
+    def unpack(reader):
+        obj = bsn_vlan_counter_clear()
+        _version = reader.read("!B")[0]
+        assert(_version == 4)
+        _type = reader.read("!B")[0]
+        assert(_type == 4)
+        _length = reader.read("!H")[0]
+        orig_reader = reader
+        reader = orig_reader.slice(_length, 4)
+        obj.xid = reader.read("!L")[0]
+        _experimenter = reader.read("!L")[0]
+        assert(_experimenter == 4120)
+        _exptype = reader.read("!L")[0]
+        assert(_exptype == 6)
+        obj.command = reader.read("!L")[0]
+        obj.index = reader.read("!L")[0]
+        obj.traffic_class = reader.read("!B")[0]
+        obj.color = reader.read("!B")[0]
+        obj.mpls_tc = reader.read("!B")[0]
+        obj.vlan_pcp = reader.read("!B")[0]
+        obj.vlan_dei = reader.read("!B")[0] 
+        _pad = reader.read("!B")[0]                                
+        _pad = reader.read("!B")[0] 
+        _pad = reader.read("!B")[0] 
+        return obj
+
+    def __eq__(self, other):
+        if type(self) != type(other): return False
+        if self.xid != other.xid: return False
+        if self._command != other._command: return False
+        if self.index != other.index: return False
+        if self.traffic_class != other.traffic_class: return False
+        if self.color != other.color: return False
+        if self.mpls_tc != other.mpls_tc: return False
+        if self.vlan_pcp != other.vlan_pcp: return False
+        if self.vlan_dei != other.vlan_dei: return False
+        return True
+
+    def pretty_print(self, q):
+        q.text("sptn_mpls_vpn_label_remark_action_add {")
+        with q.group():
+            with q.indent(2):
+                q.breakable()
+                q.text("xid = ");
+                if self.xid != None:
+                    q.text("%#x" % self.xid)
+                else:
+                    q.text('None')
+                q.text(","); q.breakable()
+                q.text("index = ");
+                q.text("%#x" % self.index)
+                q.text(","); q.breakable()
+                q.text("traffic_class = ");
+                q.text("%#x" % self.traffic_class)
+                q.text(","); q.breakable()
+                q.text("color = ");
+                q.text("%#x" % self.color)
+                q.text(","); q.breakable()
+                q.text("mpls_tc = ");
+                q.text("%#x" % self.mpls_tc)
+                q.text(","); q.breakable()
+                q.text("vlan_pcp = ");
+                q.text("%#x" % self.vlan_pcp)
+                q.text(","); q.breakable()
+                q.text("vlan_dei = ");
+                q.text("%#x" % self.vlan_dei)                                                                
+            q.breakable()
+        q.text('}')
+
+sptn_mpls_vpn_label_remark_action_mod.subtypes[0] = sptn_mpls_vpn_label_remark_action_add
+
+class sptn_mpls_vpn_label_remark_action_modify(sptn_mpls_vpn_label_remark_action_mod):
+
+    _command = 1
+
+    def __init__(self, xid=None,index=None,traffic_class=None,color=None,mpls_tc=None,vlan_pcp=None,vlan_dei=None):
+        if xid != None:
+            self.xid = xid
+        else:
+            self.xid = None
+          
+        if index != None:
+            self.index = index
+        else:
+            self.index = 0            
+        return
+        if traffic_class != None:
+            self.traffic_class = traffic_class
+        else:
+            self.traffic_class = 0
+        if color != None:
+            self.color = color
+        else:
+            self.color = 0
+        if mpls_tc != None:
+            self.mpls_tc = mpls_tc
+        else:
+            self.mpls_tc = 0
+        if vlan_pcp != None:
+            self.vlan_pcp = vlan_pcp
+        else:
+            self.vlan_pcp = 0
+        if vlan_dei != None:
+            self.vlan_dei = vlan_dei
+        else:
+            self.vlan_dei = 0 
+            
+        self.pad = 0
+        
+    def pack(self):
+        packed = []
+        packed.append(struct.pack("!B", self.version))
+        packed.append(struct.pack("!B", self.type))
+        packed.append(struct.pack("!H", 0)) # placeholder for length at index 2
+        packed.append(struct.pack("!L", self.xid))
+        packed.append(struct.pack("!L", self.experimenter))
+        packed.append(struct.pack("!L", self.exptype))
+        packed.append(struct.pack("!L", self._command))
+        packed.append(struct.pack("!L", self.index))
+        packed.append(struct.pack("!B", self.traffic_class))
+        packed.append(struct.pack("!B", self.color))
+        packed.append(struct.pack("!B", self.mpls_tc))
+        packed.append(struct.pack("!B", self.vlan_pcp))
+        packed.append(struct.pack("!B", self.vlan_dei))
+        packed.append(struct.pack("!B", self.pad))                                               
+        packed.append(struct.pack("!B", self.pad))
+        packed.append(struct.pack("!B", self.pad))  
+        length = sum([len(x) for x in packed])
+        packed[2] = struct.pack("!H", length)
+        return ''.join(packed)
+
+    @staticmethod
+    def unpack(reader):
+        obj = bsn_vlan_counter_clear()
+        _version = reader.read("!B")[0]
+        assert(_version == 4)
+        _type = reader.read("!B")[0]
+        assert(_type == 4)
+        _length = reader.read("!H")[0]
+        orig_reader = reader
+        reader = orig_reader.slice(_length, 4)
+        obj.xid = reader.read("!L")[0]
+        _experimenter = reader.read("!L")[0]
+        assert(_experimenter == 4120)
+        _exptype = reader.read("!L")[0]
+        assert(_exptype == 6)
+        obj.command = reader.read("!L")[0]
+        obj.index = reader.read("!L")[0]
+        obj.traffic_class = reader.read("!B")[0]
+        obj.color = reader.read("!B")[0]
+        obj.mpls_tc = reader.read("!B")[0]
+        obj.vlan_pcp = reader.read("!B")[0]
+        obj.vlan_dei = reader.read("!B")[0] 
+        _pad = reader.read("!B")[0]                                
+        _pad = reader.read("!B")[0] 
+        _pad = reader.read("!B")[0] 
+        return obj
+
+    def __eq__(self, other):
+        if type(self) != type(other): return False
+        if self.xid != other.xid: return False
+        if self._command != other._command: return False
+        if self.index != other.index: return False
+        if self.traffic_class != other.traffic_class: return False
+        if self.color != other.color: return False
+        if self.mpls_tc != other.mpls_tc: return False
+        if self.vlan_pcp != other.vlan_pcp: return False
+        if self.vlan_dei != other.vlan_dei: return False
+        return True
+
+    def pretty_print(self, q):
+        q.text("sptn_mpls_vpn_label_remark_action_modify {")
+        with q.group():
+            with q.indent(2):
+                q.breakable()
+                q.text("xid = ");
+                if self.xid != None:
+                    q.text("%#x" % self.xid)
+                else:
+                    q.text('None')
+                q.text(","); q.breakable()
+                q.text("index = ");
+                q.text("%#x" % self.index)
+                q.text(","); q.breakable()
+                q.text("traffic_class = ");
+                q.text("%#x" % self.traffic_class)
+                q.text(","); q.breakable()
+                q.text("color = ");
+                q.text("%#x" % self.color)
+                q.text(","); q.breakable()
+                q.text("mpls_tc = ");
+                q.text("%#x" % self.mpls_tc)
+                q.text(","); q.breakable()
+                q.text("vlan_pcp = ");
+                q.text("%#x" % self.vlan_pcp)
+                q.text(","); q.breakable()
+                q.text("vlan_dei = ");
+                q.text("%#x" % self.vlan_dei)                                                                
+            q.breakable()
+        q.text('}')
+
+sptn_mpls_vpn_label_remark_action_mod.subtypes[1] = sptn_mpls_vpn_label_remark_action_modify
+
+
+class sptn_mpls_vpn_label_remark_action_delete(sptn_mpls_vpn_label_remark_action_mod):
+
+    _command = 2
+
+    def __init__(self, xid=None,index=None,traffic_class=None,color=None,mpls_tc=None,vlan_pcp=None,vlan_dei=None):
+        if xid != None:
+            self.xid = xid
+        else:
+            self.xid = None
+          
+        if index != None:
+            self.index = index
+        else:
+            self.index = 0            
+        return
+        if traffic_class != None:
+            self.traffic_class = traffic_class
+        else:
+            self.traffic_class = 0
+        if color != None:
+            self.color = color
+        else:
+            self.color = 0
+        if mpls_tc != None:
+            self.mpls_tc = mpls_tc
+        else:
+            self.mpls_tc = 0
+        if vlan_pcp != None:
+            self.vlan_pcp = vlan_pcp
+        else:
+            self.vlan_pcp = 0
+        if vlan_dei != None:
+            self.vlan_dei = vlan_dei
+        else:
+            self.vlan_dei = 0 
+            
+        self.pad = 0
+        
+    def pack(self):
+        packed = []
+        packed.append(struct.pack("!B", self.version))
+        packed.append(struct.pack("!B", self.type))
+        packed.append(struct.pack("!H", 0)) # placeholder for length at index 2
+        packed.append(struct.pack("!L", self.xid))
+        packed.append(struct.pack("!L", self.experimenter))
+        packed.append(struct.pack("!L", self.exptype))
+        packed.append(struct.pack("!L", self._command))
+        packed.append(struct.pack("!L", self.index))
+        packed.append(struct.pack("!B", self.traffic_class))
+        packed.append(struct.pack("!B", self.color))
+        packed.append(struct.pack("!B", self.mpls_tc))
+        packed.append(struct.pack("!B", self.vlan_pcp))
+        packed.append(struct.pack("!B", self.vlan_dei))
+        packed.append(struct.pack("!B", self.pad))                                               
+        packed.append(struct.pack("!B", self.pad))
+        packed.append(struct.pack("!B", self.pad))  
+        length = sum([len(x) for x in packed])
+        packed[2] = struct.pack("!H", length)
+        return ''.join(packed)
+
+    @staticmethod
+    def unpack(reader):
+        obj = bsn_vlan_counter_clear()
+        _version = reader.read("!B")[0]
+        assert(_version == 4)
+        _type = reader.read("!B")[0]
+        assert(_type == 4)
+        _length = reader.read("!H")[0]
+        orig_reader = reader
+        reader = orig_reader.slice(_length, 4)
+        obj.xid = reader.read("!L")[0]
+        _experimenter = reader.read("!L")[0]
+        assert(_experimenter == 4120)
+        _exptype = reader.read("!L")[0]
+        assert(_exptype == 6)
+        obj.command = reader.read("!L")[0]
+        obj.index = reader.read("!L")[0]
+        obj.traffic_class = reader.read("!B")[0]
+        obj.color = reader.read("!B")[0]
+        obj.mpls_tc = reader.read("!B")[0]
+        obj.vlan_pcp = reader.read("!B")[0]
+        obj.vlan_dei = reader.read("!B")[0] 
+        _pad = reader.read("!B")[0]                                
+        _pad = reader.read("!B")[0] 
+        _pad = reader.read("!B")[0] 
+        return obj
+
+    def __eq__(self, other):
+        if type(self) != type(other): return False
+        if self.xid != other.xid: return False
+        if self._command != other._command: return False
+        if self.index != other.index: return False
+        if self.traffic_class != other.traffic_class: return False
+        if self.color != other.color: return False
+        if self.mpls_tc != other.mpls_tc: return False
+        if self.vlan_pcp != other.vlan_pcp: return False
+        if self.vlan_dei != other.vlan_dei: return False
+        return True
+
+    def pretty_print(self, q):
+        q.text("sptn_mpls_vpn_label_remark_action_delete {")
+        with q.group():
+            with q.indent(2):
+                q.breakable()
+                q.text("xid = ");
+                if self.xid != None:
+                    q.text("%#x" % self.xid)
+                else:
+                    q.text('None')
+                q.text(","); q.breakable()
+                q.text("index = ");
+                q.text("%#x" % self.index)
+                q.text(","); q.breakable()
+                q.text("traffic_class = ");
+                q.text("%#x" % self.traffic_class)
+                q.text(","); q.breakable()
+                q.text("color = ");
+                q.text("%#x" % self.color)
+                q.text(","); q.breakable()
+                q.text("mpls_tc = ");
+                q.text("%#x" % self.mpls_tc)
+                q.text(","); q.breakable()
+                q.text("vlan_pcp = ");
+                q.text("%#x" % self.vlan_pcp)
+                q.text(","); q.breakable()
+                q.text("vlan_dei = ");
+                q.text("%#x" % self.vlan_dei)                                                                
+            q.breakable()
+        q.text('}')
+
+sptn_mpls_vpn_label_remark_action_mod.subtypes[2] = sptn_mpls_vpn_label_remark_action_delete
+
+
+class sptn_mpls_tunnel_label_remark_action_mod(sptn_header):
+    subtypes = {}
+    version = 4
+    type = 4
+    experimenter = 4120
+    exptype = 8
+
+
+    def __init__(self, xid=None, _command=None,index=None,traffic_class=None,color=None,mpls_tc=None,vlan_pcp=None,vlan_dei=None):
+        if xid != None:
+            self.xid = xid
+        else:
+            self.xid = None
+            
+        if _command != None:
+            self._command = _command
+        else:
+            self._command = 0
+            
+        if index != None:
+            self.index = index
+        else:
+            self.index = 0            
+        return
+        if traffic_class != None:
+            self.traffic_class = traffic_class
+        else:
+            self.traffic_class = 0
+        if color != None:
+            self.color = color
+        else:
+            self.color = 0
+        if mpls_tc != None:
+            self.mpls_tc = mpls_tc
+        else:
+            self.mpls_tc = 0
+        if vlan_pcp != None:
+            self.vlan_pcp = vlan_pcp
+        else:
+            self.vlan_pcp = 0
+        if vlan_dei != None:
+            self.vlan_dei = vlan_dei
+        else:
+            self.vlan_dei = 0 
+            
+        self.pad = 0
+        
+    def pack(self):
+        packed = []
+        packed.append(struct.pack("!B", self.version))
+        packed.append(struct.pack("!B", self.type))
+        packed.append(struct.pack("!H", 0)) # placeholder for length at index 2
+        packed.append(struct.pack("!L", self.xid))
+        packed.append(struct.pack("!L", self.experimenter))
+        packed.append(struct.pack("!L", self.exptype))
+        packed.append(struct.pack("!L", self._command))
+        packed.append(struct.pack("!L", self.index))
+        packed.append(struct.pack("!B", self.traffic_class))
+        packed.append(struct.pack("!B", self.color))
+        packed.append(struct.pack("!B", self.mpls_tc))
+        packed.append(struct.pack("!B", self.vlan_pcp))
+        packed.append(struct.pack("!B", self.vlan_dei))
+        packed.append(struct.pack("!B", self.pad))                                               
+        packed.append(struct.pack("!B", self.pad))
+        packed.append(struct.pack("!B", self.pad))  
+        length = sum([len(x) for x in packed])
+        packed[2] = struct.pack("!H", length)
+        return ''.join(packed)
+
+    @staticmethod
+    def unpack(reader):
+        obj = bsn_vlan_counter_clear()
+        _version = reader.read("!B")[0]
+        assert(_version == 4)
+        _type = reader.read("!B")[0]
+        assert(_type == 4)
+        _length = reader.read("!H")[0]
+        orig_reader = reader
+        reader = orig_reader.slice(_length, 4)
+        obj.xid = reader.read("!L")[0]
+        _experimenter = reader.read("!L")[0]
+        assert(_experimenter == 4120)
+        _exptype = reader.read("!L")[0]
+        assert(_exptype == 8)
+        obj.command = reader.read("!L")[0]
+        obj.index = reader.read("!L")[0]
+        obj.traffic_class = reader.read("!B")[0]
+        obj.color = reader.read("!B")[0]
+        obj.mpls_tc = reader.read("!B")[0]
+        obj.vlan_pcp = reader.read("!B")[0]
+        obj.vlan_dei = reader.read("!B")[0] 
+        _pad = reader.read("!B")[0]                                
+        _pad = reader.read("!B")[0] 
+        _pad = reader.read("!B")[0] 
+        return obj
+
+    def __eq__(self, other):
+        if type(self) != type(other): return False
+        if self.xid != other.xid: return False
+        if self._command != other._command: return False
+        if self.index != other.index: return False
+        if self.traffic_class != other.traffic_class: return False
+        if self.color != other.color: return False
+        if self.mpls_tc != other.mpls_tc: return False
+        if self.vlan_pcp != other.vlan_pcp: return False
+        if self.vlan_dei != other.vlan_dei: return False
+        return True
+
+    def pretty_print(self, q):
+        q.text("sptn_mpls_tunnel_label_remark_action_mod {")
+        with q.group():
+            with q.indent(2):
+                q.breakable()
+                q.text("xid = ");
+                if self.xid != None:
+                    q.text("%#x" % self.xid)
+                else:
+                    q.text('None')
+                q.text(","); q.breakable()
+                q.text("index = ");
+                q.text("%#x" % self.index)
+                q.text(","); q.breakable()
+                q.text("traffic_class = ");
+                q.text("%#x" % self.traffic_class)
+                q.text(","); q.breakable()
+                q.text("color = ");
+                q.text("%#x" % self.color)
+                q.text(","); q.breakable()
+                q.text("mpls_tc = ");
+                q.text("%#x" % self.mpls_tc)
+                q.text(","); q.breakable()
+                q.text("vlan_pcp = ");
+                q.text("%#x" % self.vlan_pcp)
+                q.text(","); q.breakable()
+                q.text("vlan_dei = ");
+                q.text("%#x" % self.vlan_dei)                                                                
+            q.breakable()
+        q.text('}')
+
+sptn_header.subtypes[8] = sptn_mpls_tunnel_label_remark_action_mod
+
+class sptn_mpls_tunnel_label_remark_action_add(sptn_mpls_tunnel_label_remark_action_mod):
+
+    _command = 0
+
+    def __init__(self, xid=None,index=None,traffic_class=None,color=None,mpls_tc=None,vlan_pcp=None,vlan_dei=None):
+        if xid != None:
+            self.xid = xid
+        else:
+            self.xid = None
+          
+        if index != None:
+            self.index = index
+        else:
+            self.index = 0            
+        return
+        if traffic_class != None:
+            self.traffic_class = traffic_class
+        else:
+            self.traffic_class = 0
+        if color != None:
+            self.color = color
+        else:
+            self.color = 0
+        if mpls_tc != None:
+            self.mpls_tc = mpls_tc
+        else:
+            self.mpls_tc = 0
+        if vlan_pcp != None:
+            self.vlan_pcp = vlan_pcp
+        else:
+            self.vlan_pcp = 0
+        if vlan_dei != None:
+            self.vlan_dei = vlan_dei
+        else:
+            self.vlan_dei = 0 
+            
+        self.pad = 0
+        
+    def pack(self):
+        packed = []
+        packed.append(struct.pack("!B", self.version))
+        packed.append(struct.pack("!B", self.type))
+        packed.append(struct.pack("!H", 0)) # placeholder for length at index 2
+        packed.append(struct.pack("!L", self.xid))
+        packed.append(struct.pack("!L", self.experimenter))
+        packed.append(struct.pack("!L", self.exptype))
+        packed.append(struct.pack("!L", self._command))
+        packed.append(struct.pack("!L", self.index))
+        packed.append(struct.pack("!B", self.traffic_class))
+        packed.append(struct.pack("!B", self.color))
+        packed.append(struct.pack("!B", self.mpls_tc))
+        packed.append(struct.pack("!B", self.vlan_pcp))
+        packed.append(struct.pack("!B", self.vlan_dei))
+        packed.append(struct.pack("!B", self.pad))                                               
+        packed.append(struct.pack("!B", self.pad))
+        packed.append(struct.pack("!B", self.pad))  
+        length = sum([len(x) for x in packed])
+        packed[2] = struct.pack("!H", length)
+        return ''.join(packed)
+
+    @staticmethod
+    def unpack(reader):
+        obj = bsn_vlan_counter_clear()
+        _version = reader.read("!B")[0]
+        assert(_version == 4)
+        _type = reader.read("!B")[0]
+        assert(_type == 4)
+        _length = reader.read("!H")[0]
+        orig_reader = reader
+        reader = orig_reader.slice(_length, 4)
+        obj.xid = reader.read("!L")[0]
+        _experimenter = reader.read("!L")[0]
+        assert(_experimenter == 4120)
+        _exptype = reader.read("!L")[0]
+        assert(_exptype == 6)
+        obj.command = reader.read("!L")[0]
+        obj.index = reader.read("!L")[0]
+        obj.traffic_class = reader.read("!B")[0]
+        obj.color = reader.read("!B")[0]
+        obj.mpls_tc = reader.read("!B")[0]
+        obj.vlan_pcp = reader.read("!B")[0]
+        obj.vlan_dei = reader.read("!B")[0] 
+        _pad = reader.read("!B")[0]                                
+        _pad = reader.read("!B")[0] 
+        _pad = reader.read("!B")[0] 
+        return obj
+
+    def __eq__(self, other):
+        if type(self) != type(other): return False
+        if self.xid != other.xid: return False
+        if self._command != other._command: return False
+        if self.index != other.index: return False
+        if self.traffic_class != other.traffic_class: return False
+        if self.color != other.color: return False
+        if self.mpls_tc != other.mpls_tc: return False
+        if self.vlan_pcp != other.vlan_pcp: return False
+        if self.vlan_dei != other.vlan_dei: return False
+        return True
+
+    def pretty_print(self, q):
+        q.text("sptn_mpls_tunnel_label_remark_action_add {")
+        with q.group():
+            with q.indent(2):
+                q.breakable()
+                q.text("xid = ");
+                if self.xid != None:
+                    q.text("%#x" % self.xid)
+                else:
+                    q.text('None')
+                q.text(","); q.breakable()
+                q.text("index = ");
+                q.text("%#x" % self.index)
+                q.text(","); q.breakable()
+                q.text("traffic_class = ");
+                q.text("%#x" % self.traffic_class)
+                q.text(","); q.breakable()
+                q.text("color = ");
+                q.text("%#x" % self.color)
+                q.text(","); q.breakable()
+                q.text("mpls_tc = ");
+                q.text("%#x" % self.mpls_tc)
+                q.text(","); q.breakable()
+                q.text("vlan_pcp = ");
+                q.text("%#x" % self.vlan_pcp)
+                q.text(","); q.breakable()
+                q.text("vlan_dei = ");
+                q.text("%#x" % self.vlan_dei)                                                                
+            q.breakable()
+        q.text('}')
+
+sptn_mpls_tunnel_label_remark_action_mod.subtypes[0] = sptn_mpls_tunnel_label_remark_action_add
+
+class sptn_mpls_tunnel_label_remark_action_modify(sptn_mpls_tunnel_label_remark_action_mod):
+
+    _command = 1
+
+    def __init__(self, xid=None,index=None,traffic_class=None,color=None,mpls_tc=None,vlan_pcp=None,vlan_dei=None):
+        if xid != None:
+            self.xid = xid
+        else:
+            self.xid = None
+          
+        if index != None:
+            self.index = index
+        else:
+            self.index = 0            
+        return
+        if traffic_class != None:
+            self.traffic_class = traffic_class
+        else:
+            self.traffic_class = 0
+        if color != None:
+            self.color = color
+        else:
+            self.color = 0
+        if mpls_tc != None:
+            self.mpls_tc = mpls_tc
+        else:
+            self.mpls_tc = 0
+        if vlan_pcp != None:
+            self.vlan_pcp = vlan_pcp
+        else:
+            self.vlan_pcp = 0
+        if vlan_dei != None:
+            self.vlan_dei = vlan_dei
+        else:
+            self.vlan_dei = 0 
+            
+        self.pad = 0
+        
+    def pack(self):
+        packed = []
+        packed.append(struct.pack("!B", self.version))
+        packed.append(struct.pack("!B", self.type))
+        packed.append(struct.pack("!H", 0)) # placeholder for length at index 2
+        packed.append(struct.pack("!L", self.xid))
+        packed.append(struct.pack("!L", self.experimenter))
+        packed.append(struct.pack("!L", self.exptype))
+        packed.append(struct.pack("!L", self._command))
+        packed.append(struct.pack("!L", self.index))
+        packed.append(struct.pack("!B", self.traffic_class))
+        packed.append(struct.pack("!B", self.color))
+        packed.append(struct.pack("!B", self.mpls_tc))
+        packed.append(struct.pack("!B", self.vlan_pcp))
+        packed.append(struct.pack("!B", self.vlan_dei))
+        packed.append(struct.pack("!B", self.pad))                                               
+        packed.append(struct.pack("!B", self.pad))
+        packed.append(struct.pack("!B", self.pad))  
+        length = sum([len(x) for x in packed])
+        packed[2] = struct.pack("!H", length)
+        return ''.join(packed)
+
+    @staticmethod
+    def unpack(reader):
+        obj = bsn_vlan_counter_clear()
+        _version = reader.read("!B")[0]
+        assert(_version == 4)
+        _type = reader.read("!B")[0]
+        assert(_type == 4)
+        _length = reader.read("!H")[0]
+        orig_reader = reader
+        reader = orig_reader.slice(_length, 4)
+        obj.xid = reader.read("!L")[0]
+        _experimenter = reader.read("!L")[0]
+        assert(_experimenter == 4120)
+        _exptype = reader.read("!L")[0]
+        assert(_exptype == 6)
+        obj.command = reader.read("!L")[0]
+        obj.index = reader.read("!L")[0]
+        obj.traffic_class = reader.read("!B")[0]
+        obj.color = reader.read("!B")[0]
+        obj.mpls_tc = reader.read("!B")[0]
+        obj.vlan_pcp = reader.read("!B")[0]
+        obj.vlan_dei = reader.read("!B")[0] 
+        _pad = reader.read("!B")[0]                                
+        _pad = reader.read("!B")[0] 
+        _pad = reader.read("!B")[0] 
+        return obj
+
+    def __eq__(self, other):
+        if type(self) != type(other): return False
+        if self.xid != other.xid: return False
+        if self._command != other._command: return False
+        if self.index != other.index: return False
+        if self.traffic_class != other.traffic_class: return False
+        if self.color != other.color: return False
+        if self.mpls_tc != other.mpls_tc: return False
+        if self.vlan_pcp != other.vlan_pcp: return False
+        if self.vlan_dei != other.vlan_dei: return False
+        return True
+
+    def pretty_print(self, q):
+        q.text("sptn_mpls_tunnel_label_remark_action_modify {")
+        with q.group():
+            with q.indent(2):
+                q.breakable()
+                q.text("xid = ");
+                if self.xid != None:
+                    q.text("%#x" % self.xid)
+                else:
+                    q.text('None')
+                q.text(","); q.breakable()
+                q.text("index = ");
+                q.text("%#x" % self.index)
+                q.text(","); q.breakable()
+                q.text("traffic_class = ");
+                q.text("%#x" % self.traffic_class)
+                q.text(","); q.breakable()
+                q.text("color = ");
+                q.text("%#x" % self.color)
+                q.text(","); q.breakable()
+                q.text("mpls_tc = ");
+                q.text("%#x" % self.mpls_tc)
+                q.text(","); q.breakable()
+                q.text("vlan_pcp = ");
+                q.text("%#x" % self.vlan_pcp)
+                q.text(","); q.breakable()
+                q.text("vlan_dei = ");
+                q.text("%#x" % self.vlan_dei)                                                                
+            q.breakable()
+        q.text('}')
+
+sptn_mpls_tunnel_label_remark_action_mod.subtypes[1] = sptn_mpls_tunnel_label_remark_action_modify
+
+
+class sptn_mpls_tunnel_label_remark_action_delete(sptn_mpls_vpn_label_remark_action_mod):
+
+    _command = 2
+
+    def __init__(self, xid=None,index=None,traffic_class=None,color=None,mpls_tc=None,vlan_pcp=None,vlan_dei=None):
+        if xid != None:
+            self.xid = xid
+        else:
+            self.xid = None
+          
+        if index != None:
+            self.index = index
+        else:
+            self.index = 0            
+        return
+        if traffic_class != None:
+            self.traffic_class = traffic_class
+        else:
+            self.traffic_class = 0
+        if color != None:
+            self.color = color
+        else:
+            self.color = 0
+        if mpls_tc != None:
+            self.mpls_tc = mpls_tc
+        else:
+            self.mpls_tc = 0
+        if vlan_pcp != None:
+            self.vlan_pcp = vlan_pcp
+        else:
+            self.vlan_pcp = 0
+        if vlan_dei != None:
+            self.vlan_dei = vlan_dei
+        else:
+            self.vlan_dei = 0 
+            
+        self.pad = 0
+        
+    def pack(self):
+        packed = []
+        packed.append(struct.pack("!B", self.version))
+        packed.append(struct.pack("!B", self.type))
+        packed.append(struct.pack("!H", 0)) # placeholder for length at index 2
+        packed.append(struct.pack("!L", self.xid))
+        packed.append(struct.pack("!L", self.experimenter))
+        packed.append(struct.pack("!L", self.exptype))
+        packed.append(struct.pack("!L", self._command))
+        packed.append(struct.pack("!L", self.index))
+        packed.append(struct.pack("!B", self.traffic_class))
+        packed.append(struct.pack("!B", self.color))
+        packed.append(struct.pack("!B", self.mpls_tc))
+        packed.append(struct.pack("!B", self.vlan_pcp))
+        packed.append(struct.pack("!B", self.vlan_dei))
+        packed.append(struct.pack("!B", self.pad))                                               
+        packed.append(struct.pack("!B", self.pad))
+        packed.append(struct.pack("!B", self.pad))  
+        length = sum([len(x) for x in packed])
+        packed[2] = struct.pack("!H", length)
+        return ''.join(packed)
+
+    @staticmethod
+    def unpack(reader):
+        obj = bsn_vlan_counter_clear()
+        _version = reader.read("!B")[0]
+        assert(_version == 4)
+        _type = reader.read("!B")[0]
+        assert(_type == 4)
+        _length = reader.read("!H")[0]
+        orig_reader = reader
+        reader = orig_reader.slice(_length, 4)
+        obj.xid = reader.read("!L")[0]
+        _experimenter = reader.read("!L")[0]
+        assert(_experimenter == 4120)
+        _exptype = reader.read("!L")[0]
+        assert(_exptype == 6)
+        obj.command = reader.read("!L")[0]
+        obj.index = reader.read("!L")[0]
+        obj.traffic_class = reader.read("!B")[0]
+        obj.color = reader.read("!B")[0]
+        obj.mpls_tc = reader.read("!B")[0]
+        obj.vlan_pcp = reader.read("!B")[0]
+        obj.vlan_dei = reader.read("!B")[0] 
+        _pad = reader.read("!B")[0]                                
+        _pad = reader.read("!B")[0] 
+        _pad = reader.read("!B")[0] 
+        return obj
+
+    def __eq__(self, other):
+        if type(self) != type(other): return False
+        if self.xid != other.xid: return False
+        if self._command != other._command: return False
+        if self.index != other.index: return False
+        if self.traffic_class != other.traffic_class: return False
+        if self.color != other.color: return False
+        if self.mpls_tc != other.mpls_tc: return False
+        if self.vlan_pcp != other.vlan_pcp: return False
+        if self.vlan_dei != other.vlan_dei: return False
+        return True
+
+    def pretty_print(self, q):
+        q.text("sptn_mpls_tunnel_label_remark_action_delete {")
+        with q.group():
+            with q.indent(2):
+                q.breakable()
+                q.text("xid = ");
+                if self.xid != None:
+                    q.text("%#x" % self.xid)
+                else:
+                    q.text('None')
+                q.text(","); q.breakable()
+                q.text("index = ");
+                q.text("%#x" % self.index)
+                q.text(","); q.breakable()
+                q.text("traffic_class = ");
+                q.text("%#x" % self.traffic_class)
+                q.text(","); q.breakable()
+                q.text("color = ");
+                q.text("%#x" % self.color)
+                q.text(","); q.breakable()
+                q.text("mpls_tc = ");
+                q.text("%#x" % self.mpls_tc)
+                q.text(","); q.breakable()
+                q.text("vlan_pcp = ");
+                q.text("%#x" % self.vlan_pcp)
+                q.text(","); q.breakable()
+                q.text("vlan_dei = ");
+                q.text("%#x" % self.vlan_dei)                                                                
+            q.breakable()
+        q.text('}')
+
+sptn_mpls_tunnel_label_remark_action_mod.subtypes[2] = sptn_mpls_tunnel_label_remark_action_delete
+
+
+
 class desc_stats_reply(stats_reply):
     version = 4
     type = 19

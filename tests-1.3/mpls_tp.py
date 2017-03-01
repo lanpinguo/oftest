@@ -158,6 +158,20 @@ class RES_POOL():
         #print(self.MplsL2VpnGroupIndex)
         return self.MplsL2VpnGroupIndex           
 
+class QoS():
+    """
+    Global Qos class
+    
+    @var pattern The Qos based type ,such as 1-pcp , 2-dscp 
+    
+    """
+    def __init__(self,pattern=1):
+        self.pattern = pattern
+
+        
+       
+
+
 
 class TUNNEL():
     """
@@ -2944,75 +2958,75 @@ class SptnPwProStatistic(advanced_tests.AdvancedProtocol):
     def deleteVpws(self):
         if self.pe1 != None:
             (rc,info) = self.pe1.deleteMlp(mlpIndex = 1)
-            print('deleteMlp:'+ str(rc) + '(' + info + ')')
+            print('deleteMlp                :'+ str(rc) + '(' + info + ')')
             
             time.sleep(1)
 
             (rc,info)  = self.pe1.removeOamFromPw(pwIndex = 1,type=1)
-            print('removeOamFromPw:'+ str(rc) + '(' + info + ')')
+            print('removeOamFromPw          :'+ str(rc) + '(' + info + ')')
             (rc,info)  = self.pe1.removeOamFromPw(pwIndex = 1,type=2)
-            print('removeProOamFromPw:'+ str(rc) + '(' + info + ')')
+            print('removeProOamFromPw       :'+ str(rc) + '(' + info + ')')
 
             
             time.sleep(1)
             
             (rc,info) = self.pe1.deletePw(pwIndex = 1)
-            print('deletePw:'+ str(rc) + '(' + info + ')')
+            print('deletePw                 :'+ str(rc) + '(' + info + ')')
 
             time.sleep(1)
 
             (rc,info) = self.pe1.deleteTunnel(tunnelIndex = 1)
-            print('deleteTunnel:'+ str(rc) + '(' + info + ')')
+            print('deleteTunnel             :'+ str(rc) + '(' + info + ')')
 
             (rc,info) = self.pe1.deleteTunnel(tunnelIndex = 2)
-            print('deleteTunnel:'+ str(rc) + '(' + info + ')')
+            print('deleteTunnel             :'+ str(rc) + '(' + info + ')')
             
             time.sleep(1)
             
             (rc,info) = self.pe1.deleteLsp(lspIndex = 1)
-            print('deleteLsp:'+ str(rc) + '(' + info + ')')
+            print('deleteLsp                :'+ str(rc) + '(' + info + ')')
             
             time.sleep(1)
             
             (rc,info) = self.pe1.deleteLsp(lspIndex = 2)
-            print('deleteLsp:'+ str(rc) + '(' + info + ')')
+            print('deleteLsp                :'+ str(rc) + '(' + info + ')')
 
         
         if self.pe2 != None:
 
             (rc,info) = self.pe2.deleteMlp(mlpIndex = 1)
-            print('deleteMlp:'+ str(rc) + '(' + info + ')')
+            print('deleteMlp                :'+ str(rc) + '(' + info + ')')
             
             time.sleep(1)
 
             (rc,info)  = self.pe2.removeOamFromPw(pwIndex = 1,type=1)
-            print('removeOamFromPw:'+ str(rc) + '(' + info + ')')
+            print('removeOamFromPw          :'+ str(rc) + '(' + info + ')')
             (rc,info)  = self.pe2.removeOamFromPw(pwIndex = 1,type=2)
-            print('removeProOamFromPw:'+ str(rc) + '(' + info + ')')
+            print('removeProOamFromPw       :'+ str(rc) + '(' + info + ')')
 
             
             time.sleep(1)
             
             (rc,info) = self.pe2.deletePw(pwIndex = 1)
-            print('deletePw:'+ str(rc) + '(' + info + ')')
+            print('deletePw                 :'+ str(rc) + '(' + info + ')')
 
             time.sleep(1)
 
             (rc,info) = self.pe2.deleteTunnel(tunnelIndex = 1)
-            print('deleteTunnel:'+ str(rc) + '(' + info + ')')
+            print('deleteTunnel             :'+ str(rc) + '(' + info + ')')
 
             (rc,info) = self.pe2.deleteTunnel(tunnelIndex = 2)
-            print('deleteTunnel:'+ str(rc) + '(' + info + ')')
+            print('deleteTunnel             :'+ str(rc) + '(' + info + ')')
             
             time.sleep(1)
             
             (rc,info) = self.pe2.deleteLsp(lspIndex = 1)
-            print('deleteLsp:'+ str(rc) + '(' + info + ')')
+            print('deleteLsp                :'+ str(rc) + '(' + info + ')')
             
             time.sleep(1)
             
             (rc,info) = self.pe2.deleteLsp(lspIndex = 2)
-            print('deleteLsp:'+ str(rc) + '(' + info + ')')
+            print('deleteLsp                :'+ str(rc) + '(' + info + ')')
     
     def showStatistic(self):
         if self.pe1 != None:
