@@ -1,0 +1,18 @@
+﻿<bfd xmlns="urn:ietf:params:xml:ns:yang:raisecom:bfd"  xmlns:a="urn:ietf:params:xml:ns:netconf:base:1.0"   a:operation="create" >
+    <bfdsession>	
+        <index>1</index>
+        <layer-rate>pw</layer-rate>
+        <openflowid>1</openflowid>
+        <sessiontype>static</sessiontype>
+        <localdiscriminator>1</localdiscriminator>
+        <remotediscriminator>2</remotediscriminator>
+        <localrxinterval>3000</localrxinterval>
+        <localtxinterval>3000</localtxinterval>
+        <localdetectmultiplier>3</localdetectmultiplier>
+        <ttl>1</ttl>	
+    </bfdsession>
+</bfd>
+
+
+
+

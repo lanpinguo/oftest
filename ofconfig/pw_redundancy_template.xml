@@ -1,0 +1,20 @@
+﻿<pw-redundancy xmlns="urn:ietf:params:xml:ns:yang:raisecom:pw-redundancy">
+    <pw-redundancy>
+      <resource-id>1</resource-id>
+      <index>1</index>
+      <name>1</name>
+      <psCommand>noCmd</psCommand>
+      <logicalport>
+        <liveness-port>4026531841</liveness-port>
+        <role>working</role>
+        <bfdofid>1</bfdofid>
+      </logicalport>
+      <logicalport>
+        <liveness-port>4026531842</liveness-port>
+        <role>protection</role>
+        <bfdofid>2</bfdofid>
+      </logicalport>
+    </pw-redundancy>
+</pw-redundancy>
+
+

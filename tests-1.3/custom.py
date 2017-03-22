@@ -8,7 +8,7 @@ PE1 CONFIG
 '''
 PE1_CONFIG = {
 
-    'DPID'          : 0xe5e501c5a0000                  ,
+    'DPID'          : 1                                ,
     'UNI_PORT'      : 3                                ,
     'UNI_VLAN'      : 10                               ,
     'LSP_ING_LABEL' : 1000                             ,
@@ -28,7 +28,7 @@ PE2 CONFIG
 '''
 PE2_CONFIG = {
 
-    "DPID"          : 0xe5e512ff90000                  ,
+    "DPID"          : 2                                ,
     "UNI_PORT"      : 3                                ,
     "UNI_VLAN"      : 10                               ,
     "LSP_ING_LABEL" : 2000                             ,

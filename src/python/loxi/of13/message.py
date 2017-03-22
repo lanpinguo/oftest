@@ -9409,7 +9409,7 @@ class sptn_mpls_vpn_label_remark_action_mod(sptn_header):
             self.index = index
         else:
             self.index = 0            
-        return
+        
         if traffic_class != None:
             self.traffic_class = traffic_class
         else:
@@ -9432,7 +9432,7 @@ class sptn_mpls_vpn_label_remark_action_mod(sptn_header):
             self.vlan_dei = 0 
             
         self.pad = 0
-        
+        return
     def pack(self):
         packed = []
         packed.append(struct.pack("!B", self.version))
@@ -9541,7 +9541,7 @@ class sptn_mpls_vpn_label_remark_action_add(sptn_mpls_vpn_label_remark_action_mo
             self.index = index
         else:
             self.index = 0            
-        return
+        
         if traffic_class != None:
             self.traffic_class = traffic_class
         else:
@@ -9564,7 +9564,7 @@ class sptn_mpls_vpn_label_remark_action_add(sptn_mpls_vpn_label_remark_action_mo
             self.vlan_dei = 0 
             
         self.pad = 0
-        
+        return
     def pack(self):
         packed = []
         packed.append(struct.pack("!B", self.version))
@@ -9673,7 +9673,7 @@ class sptn_mpls_vpn_label_remark_action_modify(sptn_mpls_vpn_label_remark_action
             self.index = index
         else:
             self.index = 0            
-        return
+        
         if traffic_class != None:
             self.traffic_class = traffic_class
         else:
@@ -9696,7 +9696,7 @@ class sptn_mpls_vpn_label_remark_action_modify(sptn_mpls_vpn_label_remark_action
             self.vlan_dei = 0 
             
         self.pad = 0
-        
+        return
     def pack(self):
         packed = []
         packed.append(struct.pack("!B", self.version))
@@ -9806,7 +9806,7 @@ class sptn_mpls_vpn_label_remark_action_delete(sptn_mpls_vpn_label_remark_action
             self.index = index
         else:
             self.index = 0            
-        return
+        
         if traffic_class != None:
             self.traffic_class = traffic_class
         else:
@@ -9829,7 +9829,7 @@ class sptn_mpls_vpn_label_remark_action_delete(sptn_mpls_vpn_label_remark_action
             self.vlan_dei = 0 
             
         self.pad = 0
-        
+        return
     def pack(self):
         packed = []
         packed.append(struct.pack("!B", self.version))
@@ -9948,7 +9948,7 @@ class sptn_mpls_tunnel_label_remark_action_mod(sptn_header):
             self.index = index
         else:
             self.index = 0            
-        return
+        
         if traffic_class != None:
             self.traffic_class = traffic_class
         else:
@@ -9971,7 +9971,7 @@ class sptn_mpls_tunnel_label_remark_action_mod(sptn_header):
             self.vlan_dei = 0 
             
         self.pad = 0
-        
+        return
     def pack(self):
         packed = []
         packed.append(struct.pack("!B", self.version))
@@ -10080,7 +10080,7 @@ class sptn_mpls_tunnel_label_remark_action_add(sptn_mpls_tunnel_label_remark_act
             self.index = index
         else:
             self.index = 0            
-        return
+        
         if traffic_class != None:
             self.traffic_class = traffic_class
         else:
@@ -10103,7 +10103,7 @@ class sptn_mpls_tunnel_label_remark_action_add(sptn_mpls_tunnel_label_remark_act
             self.vlan_dei = 0 
             
         self.pad = 0
-        
+        return
     def pack(self):
         packed = []
         packed.append(struct.pack("!B", self.version))
@@ -10212,7 +10212,7 @@ class sptn_mpls_tunnel_label_remark_action_modify(sptn_mpls_tunnel_label_remark_
             self.index = index
         else:
             self.index = 0            
-        return
+        
         if traffic_class != None:
             self.traffic_class = traffic_class
         else:
@@ -10235,7 +10235,7 @@ class sptn_mpls_tunnel_label_remark_action_modify(sptn_mpls_tunnel_label_remark_
             self.vlan_dei = 0 
             
         self.pad = 0
-        
+        return
     def pack(self):
         packed = []
         packed.append(struct.pack("!B", self.version))
@@ -10345,7 +10345,7 @@ class sptn_mpls_tunnel_label_remark_action_delete(sptn_mpls_vpn_label_remark_act
             self.index = index
         else:
             self.index = 0            
-        return
+        
         if traffic_class != None:
             self.traffic_class = traffic_class
         else:
@@ -10368,7 +10368,7 @@ class sptn_mpls_tunnel_label_remark_action_delete(sptn_mpls_vpn_label_remark_act
             self.vlan_dei = 0 
             
         self.pad = 0
-        
+        return
     def pack(self):
         packed = []
         packed.append(struct.pack("!B", self.version))

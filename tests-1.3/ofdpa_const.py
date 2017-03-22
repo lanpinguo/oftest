@@ -28,7 +28,8 @@ OFDPA_FLOW_TABLE_ID_VLAN_1                            =   11    # VLAN 1 Table
 OFDPA_FLOW_TABLE_ID_MAINTENANCE_POINT                 =   12    # Maintenance Point Flow Table  
 OFDPA_FLOW_TABLE_ID_MPLS_L2_PORT                      =   13    # MPLS L2 Port Table  
 OFDPA_FLOW_TABLE_ID_MPLS_DSCP_TRUST                   =   15    # MPLS QoS DSCP Trust Table  
-OFDPA_FLOW_TABLE_ID_MPLS_PCP_TRUST                    =   16    # MPLS QoS PCP Trust Table  
+OFDPA_FLOW_TABLE_ID_MPLS_PCP_TRUST                    =   16    # MPLS QoS PCP Trust Table 
+OFDPA_FLOW_TABLE_ID_MPLS_QOS_CLASS                    =   17    # MPLS L2 Port QoS Class Table 
 OFDPA_FLOW_TABLE_ID_L2_POLICER                        =   18    # L2 Policer  
 OFDPA_FLOW_TABLE_ID_L2_POLICER_ACTIONS                =   19    # L2 Policer Actions  
 OFDPA_FLOW_TABLE_ID_TERMINATION_MAC                   =   20    # Termination MAC Table  
@@ -38,6 +39,7 @@ OFDPA_FLOW_TABLE_ID_MPLS_1                            =   24    # MPLS 1 Table
 OFDPA_FLOW_TABLE_ID_MPLS_2                            =   25    # MPLS 2 Table  
 OFDPA_FLOW_TABLE_ID_MPLS_MAINTENANCE_POINT            =   26    # MPLS-TP Maintenance Point Flow Table  
 OFDPA_FLOW_TABLE_ID_MPLS_L3_TYPE                      =   27    # MPLS L3 Type Flow Table  
+OFDPA_FLOW_TABLE_ID_MPLS_LABEL_TRUST                  =   28    # MPLS Label Trust Flow Table 
 OFDPA_FLOW_TABLE_ID_MPLS_TYPE                         =   29    # MPLS Type Flow Table  
 OFDPA_FLOW_TABLE_ID_UNICAST_ROUTING                   =   30    # Unicast Routing Table  
 OFDPA_FLOW_TABLE_ID_MULTICAST_ROUTING                 =   40    # Multicast Routing Table  
@@ -109,4 +111,55 @@ OFDPA_MPLS_FAST_FAILOVER              = 6
 OFDPA_MPLS_1_1_HEAD_END_PROTECT       = 7 
 OFDPA_MPLS_ECMP                       = 8 
 OFDPA_MPLS_L2_TAG                     = 10
+
+
+"""
+qos color enumerator
+"""
+OFDPA_QOS_COLOR_GREEN                  = 0
+OFDPA_QOS_COLOR_YELLOW                 = 1
+OFDPA_QOS_COLOR_RED                    = 2
+"""
+qos mode enumerator
+"""
+OFDPA_QOS_MODE_PCP                    = 1
+OFDPA_QOS_MODE_DSCP                   = 2
+
+"""
+qos level enumerator
+"""
+OFDPA_QOS_LEVEL_PW                    = 1
+OFDPA_QOS_LEVEL_LSP                   = 2
+
+
+"""
+qos car enumerator
+"""
+OFDPA_QOS_CAR_DIR_INBOUND             = 1
+OFDPA_QOS_CAR_DIR_OUTBOUND            = 2
+
+"""
+qos car mode enumerator
+"""
+OFDPA_QOS_CAR_MODE_trTCM             = 1
+OFDPA_QOS_CAR_MODE_ModtrTCM          = 2
+
+"""
+protection mode enumerator
+"""
+OFDPA_PROT_MODE_DISABLE               = 0
+OFDPA_PROT_MODE_ENABLE                = 1
+
+"""
+protection mode enumerator
+"""
+OFDPA_PW_PROT_PATH_WORK            = 1
+OFDPA_PW_PROT_PATH_PROTECT         = 2
+
+
+
+
+
+
+
 
