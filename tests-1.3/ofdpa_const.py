@@ -122,9 +122,10 @@ OFDPA_QOS_COLOR_RED                    = 2
 """
 qos mode enumerator
 """
+OFDPA_QOS_MODE_NONE                   = 0
 OFDPA_QOS_MODE_PCP                    = 1
 OFDPA_QOS_MODE_DSCP                   = 2
-
+OFDPA_QOS_MODE_EXP                    = 3
 """
 qos level enumerator
 """

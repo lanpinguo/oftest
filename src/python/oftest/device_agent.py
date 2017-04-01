@@ -85,8 +85,10 @@ class DeviceAgent(Thread):
 
         self.buffered_input = ""
         
-    def getPortMac(self, port = None) :
-        return [0x00,0x0e,0x5e,0x00,0x00,0x02]
+    def getPortMac(self, port) :
+        if port > len(self.port_desc) or port < 1:
+            return []
+        return self.port_desc[port - 1].hw_addr
         
     def message_send(self, msg):
         """

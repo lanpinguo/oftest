@@ -1181,7 +1181,7 @@ class PW():
                 ]
                 priority = 2
         
-                logging.info("Inserting  mpls l2 policy flow table")
+                logging.info("Inserting  mpls l2 policy action flow table")
                 msg = ofp.message.flow_add(
                         table_id=table_id,
                         match=match,
@@ -1639,6 +1639,260 @@ class PW():
     def set(self,requset):
         pass
 
+class SWAP():
+    """
+    swap flow config data model
+    """
+    def __init__(self,swapIndex, inLabel, outLabel, nniPort_in, nniPort_out,
+                  portMac_in, portMac_out, dstMac,
+                  nniVlan_in = None, nniVlan_out = None, Qos = None):
+        self.nni2uni = []
+        self.uni2nni = []
+        self.Oam_nni2uni = []
+        self.Oam_uni2nni = []
+        self.swapIndex = swapIndex
+        self.inLabel = inLabel
+        self.outLabel = outLabel        
+        self.bundleHandle = None
+        self.nni_vlan_in = nniVlan_in
+        self.nni_vlan_out = nniVlan_out
+        self.nni_port_in = nniPort_in
+        self.nni_port_out = nniPort_out
+        self.port_mac_in = portMac_in
+        self.port_mac_out = portMac_out
+        self.dst_mac = dstMac
+        self.mpls_interface_group_id  = None
+        self.meg = None
+        self.qosApplyMode = None
+        
+        if Qos is None:
+            self.qosApplyMode = ofdpa.OFDPA_QOS_MODE_NONE
+        elif Qos.remarkPattern==ofdpa.OFDPA_QOS_MODE_EXP:
+            self.qosApplyMode = ofdpa.OFDPA_QOS_MODE_EXP
+        else:
+            self.qosApplyMode = ofdpa.OFDPA_QOS_MODE_NONE
+        
+        '''
+        add l2 interface group
+        '''
+        id = 0
+        id = ofdb_group_type_set(id,ofdpa.OFDPA_GROUP_ENTRY_TYPE_L2_INTERFACE)
+        id = ofdb_group_vlanid_set(id , self.nni_vlan_out)
+        id = ofdb_group_portid_set(id , self.nni_port_out)
+        action_list = [ofp.action.output(self.nni_port_out) ]#, ofp.action.pop_vlan()]
+        bucket_list = [ofp.bucket(actions = action_list)]
+
+        msg = ofp.message.group_add(
+            group_type=ofp.OFPGT_INDIRECT,
+            group_id= id,
+            buckets= bucket_list)
+        self.uni2nni.append(msg)
+        
+        '''
+        add mpls interface group
+        '''
+        ref_group = id
+        id = 0
+        id = ofdb_group_type_set(id,ofdpa.OFDPA_GROUP_ENTRY_TYPE_MPLS_LABEL)
+        id = ofdb_group_mpls_index_set(id , self.swapIndex)
+        id = ofdb_group_mpls_subtype_set(id , ofdpa.OFDPA_MPLS_INTERFACE)
+        self.mpls_interface_group_id = id
+        action_list = [ofp.action.group(group_id = ref_group) ,
+                       ofp.action.set_field(ofp.oxm.eth_src(value = self.port_mac_out)) ,
+                       ofp.action.set_field(ofp.oxm.eth_dst(value = self.dst_mac)) ,
+                       ofp.action.set_field(ofp.oxm.vlan_vid(value = self.nni_vlan_out)) ]
+        bucket_list = [ofp.bucket(actions = action_list)]
+
+        msg = ofp.message.group_add(
+            group_type=ofp.OFPGT_INDIRECT,
+            group_id= id,
+            buckets= bucket_list)
+        self.uni2nni.append(msg)
+
+        '''
+        temporarily place here
+        '''
+        if self.qosApplyMode == ofdpa.OFDPA_QOS_MODE_EXP:
+            for i in range(8):
+                traffic_class = i + 1
+                msg = ofp.message.sptn_mpls_vpn_label_remark_action_add(index=1,traffic_class=traffic_class,color=1,mpls_tc=Qos.local2exp[i],vlan_pcp=1,vlan_dei=1)
+                self.uni2nni.append(msg)  
+
+
+
+        '''
+        add mpls l2 swap label group
+        '''
+        ref_group = id
+        id = 0
+        id = ofdb_group_type_set(id,ofdpa.OFDPA_GROUP_ENTRY_TYPE_MPLS_LABEL)
+        id = ofdb_group_mpls_index_set(id , self.swapIndex)
+        id = ofdb_group_mpls_subtype_set(id , ofdpa.OFDPA_MPLS_SWAP_LABEL)
+        self.bundleHandle = id
+        action_list = [ofp.action.group(group_id = ref_group) ,                       
+                       ofp.action.set_field(ofp.oxm.mpls_label(value = self.outLabel)) ]
+        bucket_list = [ofp.bucket(actions = action_list)]
+        
+        if self.qosApplyMode == ofdpa.OFDPA_QOS_MODE_EXP:
+            actionRemarkMplsTc = ofp.action.experimenter(experimenter = 0x1018, data = [0x00,0x07,0x00,0x01,0x00,0x00,0x00,0x00 ])
+            action_list.append(actionRemarkMplsTc)
+            
+        msg = ofp.message.group_add(
+            group_type=ofp.OFPGT_INDIRECT,
+            group_id= id,
+            buckets= bucket_list)
+        self.uni2nni.append(msg)
+    
+
+
+        '''
+        Add vlan table entry
+        '''
+        table_id =  ofdpa.OFDPA_FLOW_TABLE_ID_VLAN
+        match = ofp.match([
+            ofp.oxm.in_port(self.nni_port_in),
+            ofp.oxm.vlan_vid(self.nni_vlan_in)
+        ])
+        
+        instructions=[
+                    ofp.instruction.goto_table( ofdpa.OFDPA_FLOW_TABLE_ID_TERMINATION_MAC),
+        ]
+        priority = 0
+
+        logging.info("Inserting vlan flow")
+        msg = ofp.message.flow_add(
+                table_id=table_id,
+                match=match,
+                instructions=instructions,
+                buffer_id=ofp.OFP_NO_BUFFER,
+                priority=priority,
+                flags=ofp.OFPFF_SEND_FLOW_REM,
+                cookie=0,
+                out_port = ofp.OFPP_ANY, 
+                out_group = ofp.OFPG_ANY,
+                hard_timeout=0,
+                idle_timeout=0)
+        self.nni2uni.append(msg)
+        
+        '''
+        Add termination mac table entry
+        '''
+        table_id = ofdpa.OFDPA_FLOW_TABLE_ID_TERMINATION_MAC
+        match = ofp.match([
+            ofp.oxm.in_port(self.nni_port_in),
+            ofp.oxm.eth_dst(value = self.port_mac_in),
+            ofp.oxm.eth_type(value = 0x8847),            
+        ])
+        
+        instructions=[
+                    ofp.instruction.goto_table(ofdpa.OFDPA_FLOW_TABLE_ID_MPLS_1),
+        ]
+        priority = 0
+
+        logging.info("Inserting termination mac flow")
+        msg = ofp.message.flow_add(
+                table_id=table_id,
+                match=match,
+                instructions=instructions,
+                buffer_id=ofp.OFP_NO_BUFFER,
+                priority=priority,
+                flags=ofp.OFPFF_SEND_FLOW_REM,
+                cookie=0,
+                out_port = ofp.OFPP_ANY, 
+                out_group = ofp.OFPG_ANY,
+                hard_timeout=0,
+                idle_timeout=0)
+        self.nni2uni.append(msg)
+        
+        '''
+        Add mpls 1 table entry
+        '''
+        table_id = ofdpa.OFDPA_FLOW_TABLE_ID_MPLS_1
+        match = ofp.match([
+            ofp.oxm.eth_type(value = 0x8847),            
+            ofp.oxm.mpls_label(value = self.inLabel),
+            ofp.oxm.mpls_bos(value = 0),            
+        ])
+        
+        apy_actions = [ofp.action.set_field(ofp.oxm.mpls_tp_mpls_type(value = 1))]        
+        
+        gototable = ofdpa.OFDPA_FLOW_TABLE_ID_MPLS_TYPE
+        
+        if self.qosApplyMode == ofdpa.OFDPA_QOS_MODE_EXP:            
+            apy_actions.append(ofp.action.set_field(ofp.oxm.mpls_tp_qos_index(value = 1)))
+            # Add copy field action
+            apy_actions.append(ofp.action.experimenter(experimenter = 0x4F4E4600, data = [0x0c,0x80,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00 ]))
+            gototable = ofdpa.OFDPA_FLOW_TABLE_ID_MPLS_LABEL_TRUST
+        
+        instructions=[
+            ofp.instruction.apply_actions(apy_actions),
+            ofp.instruction.goto_table(gototable),
+            ofp.instruction.write_actions(actions = [ofp.action.group(group_id = id)]),
+        ]
+        priority = 0
+
+        logging.info("Inserting  mpls 1 flow")
+        msg = ofp.message.flow_add(
+                table_id=table_id,
+                match=match,
+                instructions=instructions,
+                buffer_id=ofp.OFP_NO_BUFFER,
+                priority=priority,
+                flags=ofp.OFPFF_SEND_FLOW_REM,
+                cookie=0,
+                out_port = ofp.OFPP_ANY, 
+                out_group = ofp.OFPG_ANY,
+                hard_timeout=0,
+                idle_timeout=0)
+        self.nni2uni.append(msg)
+
+        if self.qosApplyMode == ofdpa.OFDPA_QOS_MODE_EXP:
+            for i in range(8):
+                '''
+                Add mpls label trust table entry
+                '''
+                table_id = ofdpa.OFDPA_FLOW_TABLE_ID_MPLS_LABEL_TRUST
+                match = ofp.match([
+                    ofp.oxm.mpls_tp_qos_index(value = 1),
+                    ofp.oxm.mpls_tc(value=i)           
+                ])
+                
+                '''
+                apply actions
+                '''
+                traffic_class = i 
+                apy_actions = [ofp.action.set_field(ofp.oxm.mpls_tp_color(value = 1)) ,
+                    ofp.action.set_field(ofp.oxm.mpls_tp_traffic_class(value = traffic_class)) ,   
+                ]
+                instructions=[
+                    ofp.instruction.goto_table(ofdpa.OFDPA_FLOW_TABLE_ID_MPLS_TYPE),
+                    ofp.instruction.apply_actions(actions = apy_actions),
+                ]
+                priority = 0
+        
+                logging.info("Inserting  mpls label trust table")
+                msg = ofp.message.flow_add(
+                        table_id=table_id,
+                        match=match,
+                        instructions=instructions,
+                        buffer_id=ofp.OFP_NO_BUFFER,
+                        priority=priority,
+                        flags=ofp.OFPFF_SEND_FLOW_REM,
+                        cookie=0,
+                        out_port = ofp.OFPP_ANY, 
+                        out_group = ofp.OFPG_ANY,
+                        hard_timeout=0,
+                        idle_timeout=0)
+                self.nni2uni.append(msg)
+        
+
+    def get_flow_db(self):
+        return ( self.uni2nni,self.nni2uni)      
+    def set(self,requset):
+        pass
+    def bundle_handle(self):
+        return self.bundleHandl
+
 
         
 class DEVICE():
@@ -1649,6 +1903,7 @@ class DEVICE():
         self.agt = agt
         self.lsp = []
         self.tunnel = []
+        self.swap = []
         self.pw = []
         self.mlp = []
         self.status = 0
@@ -1712,7 +1967,29 @@ class DEVICE():
         self.pw.append(new_pw)
         return new_pw
 
-
+    def addSwap(self,swapIndex, inLabel, outLabel, nniPort_in, nniPort_out, dstMac, nniVlan_in = None,
+                 nniVlan_out = None,Qos = None):
+        portMac_in = self.agt.port_desc[nniPort_in - 1].hw_addr
+        portMac_out = self.agt.port_desc[nniPort_out - 1].hw_addr 
+        new_swap = SWAP(swapIndex = swapIndex, inLabel = inLabel, outLabel = outLabel, 
+                        nniPort_in = nniPort_in,
+                        nniPort_out = nniPort_out,
+                        portMac_in = portMac_in,
+                        portMac_out = portMac_out ,
+                        dstMac = dstMac,
+                        nniVlan_in = nniVlan_in | ofdpa.OFDPA_VID_PRESENT,
+                        nniVlan_out = nniVlan_out | ofdpa.OFDPA_VID_PRESENT,
+                        Qos = Qos)
+        
+        (uni2nni , nni2uni) = new_swap.get_flow_db()
+        for msg in uni2nni:
+            self.agt.message_send(msg)
+        for msg in nni2uni:
+            self.agt.message_send(msg)
+        #do_barrier(self.agt)
+        self.swap.append(new_swap)
+        return new_swap   
+    
     def deletePw(self,pwIndex):
         target = None
         for x in self.pw:
@@ -2065,6 +2342,29 @@ class DEVICE():
                 out_group = msg.out_group,
                 hard_timeout = msg.hard_timeout,
                 idle_timeout = msg.idle_timeout)
+        elif isinstance(msg,ofp.message.meter_mod):
+            print('construct meter delete msg')
+            out = ofp.message.meter_mod(
+                command = ofp.OFPMC_DELETE,
+                meters = msg.meters,
+                flags = msg.flags,
+                meter_id = msg.meter_id ) 
+        elif isinstance(msg,ofp.message.sptn_mpls_vpn_label_remark_action_add):
+            out = ofp.message.sptn_mpls_vpn_label_remark_action_delete(
+                index = msg.index,
+                traffic_class = msg.traffic_class,
+                color = msg.color,
+                mpls_tc = msg.mpls_tc,
+                vlan_pcp = msg.vlan_pcp,
+                vlan_dei = msg.vlan_dei)
+        elif isinstance(msg,ofp.message.sptn_mpls_tunnel_label_remark_action_add):
+            out = ofp.message.sptn_mpls_tunnel_label_remark_action_delete(
+                index = msg.index,
+                traffic_class = msg.traffic_class,
+                color = msg.color,
+                mpls_tc = msg.mpls_tc,
+                vlan_pcp = msg.vlan_pcp,
+                vlan_dei = msg.vlan_dei)
         else:
             return None
         #print(out)
@@ -2299,8 +2599,11 @@ class DEVICE():
                         
                 else:
                     print("error type")
-                    return ([-1,-1],[-1,-1],-1)                
-            return (pwRx + pwProRx ,pwTx + pwProTx,flow_stats.duration_sec)
+                    return ([-1,-1],[-1,-1],-1) 
+            if target.protMode == ofdpa.OFDPA_PROT_MODE_ENABLE:
+                return (pwRx + pwProRx ,pwTx + pwProTx,flow_stats.duration_sec)
+            else:               
+                return (pwRx,pwTx,flow_stats.duration_sec)
         else:
             print("pw not found")
             return ([-1,-1],[-1,-1],-1)
@@ -2742,6 +3045,149 @@ class SptnQosCarPcp(advanced_tests.AdvancedProtocol):
 
 
     def delete(self):
+        if self.pe1 != None:
+            
+            (rc,info) = self.pe1.deletePw(pwIndex = 1)
+            print('deletePw:'+ str(rc) + '(' + info + ')')
+
+            time.sleep(1)
+            
+            (rc,info) = self.pe1.deleteTunnel(tunnelIndex = 1)
+            print('deleteTunnel:'+ str(rc) + '(' + info + ')')
+
+            time.sleep(1)
+            
+            (rc,info) = self.pe1.deleteLsp(lspIndex = 1)
+            print('deleteLsp:'+ str(rc) + '(' + info + ')')
+            
+            time.sleep(1)
+
+        
+        if self.pe2 != None:
+          
+            (rc,info) = self.pe2.deletePw(pwIndex = 1)
+            print('deletePw:'+ str(rc) + '(' + info + ')')
+
+            time.sleep(1)
+
+            (rc,info) = self.pe2.deleteTunnel(tunnelIndex = 1)
+            print('deleteTunnel:'+ str(rc) + '(' + info + ')')
+
+            time.sleep(1)
+            
+            (rc,info) = self.pe2.deleteLsp(lspIndex = 1)
+            print('deleteLsp:'+ str(rc) + '(' + info + ')')
+            
+            
+class SptnQosCarPcp_2(advanced_tests.AdvancedProtocol):
+    """
+    vpws test case for sptn Qos  
+    """      
+    def runTest(self):
+        self.pe1 = None
+        self.pe2 = None 
+        
+        self.deviceIsOnline = 0
+        self.waitDeviceOnline = 5 # wait timeout = 20s
+        while self.deviceIsOnline < 2 and self.waitDeviceOnline > 0:
+            for agt in self.controller.device_agents:
+                if self.pe1 == None and agt.dpid == custom.PE1_CONFIG['DPID']: 
+                    self.pe1 = DEVICE(agt = agt)
+                    self.deviceIsOnline += 1
+                elif self.pe2 == None and agt.dpid == custom.PE2_CONFIG['DPID']:
+                    self.pe2 = DEVICE(agt = agt) 
+                    self.deviceIsOnline += 1                    
+            self.waitDeviceOnline -= 1
+            time.sleep(1) # sleep 1s
+        self.assertNotEquals(self.deviceIsOnline, 0,'no enough device is online')
+
+        self.active = True
+        while self.active:
+            cmd = raw_input('cmd: ')
+            print(cmd)
+            if cmd == 'basic':
+                self.addBasic()
+            elif cmd == 'd':
+                self.delete()
+            elif cmd == 'sync':
+                self.updateDevice()
+            elif cmd == 'exit':
+                self.active = False 
+            else:
+                print('unknown cmd') 
+
+    def addBasic(self):
+        uniPort = 3
+        uniVlan = [10]
+        nniPort_w = 4
+        nniPort_p = 2
+
+        nniVlan = 100
+        pe1PortMacW = self.pe1.agt.port_desc[nniPort_w - 1].hw_addr 
+        pe1PortMacP = self.pe1.agt.port_desc[nniPort_p - 1].hw_addr 
+        
+        pe2PortMacW = self.pe2.agt.port_desc[nniPort_w - 1].hw_addr 
+        pe2PortMacP = self.pe2.agt.port_desc[nniPort_p - 1].hw_addr   
+        
+        # qos for pw 
+        pwInboundCar1 = CAR(index = 1, cir = 10000, cbs = 10000, eir = 20000 ,ebs = 10000,\
+                    direction=ofdpa.OFDPA_QOS_CAR_DIR_INBOUND)
+        local2exp = [0,7,6,5,4,3,2,1]
+        remarkPattern = ofdpa.OFDPA_QOS_MODE_PCP
+        pwQos1 = QoS(index = 1,cars = [pwInboundCar1],local2exp=local2exp,remarkPattern=remarkPattern)
+
+        pwInboundCar2 = CAR(index = 2, cir = 30000, cbs = 10000, eir = 40000 ,ebs = 10000,\
+                    direction=ofdpa.OFDPA_QOS_CAR_DIR_INBOUND)
+        local2exp = [0,7,6,5,4,3,2,1]
+        remarkPattern = ofdpa.OFDPA_QOS_MODE_PCP
+        pwQos2 = QoS(index = 1,cars = [pwInboundCar2],local2exp=local2exp,remarkPattern=remarkPattern)
+        
+        
+        # qos for lsp
+        local2exp = [0,1,2,3,4,5,6,7]
+        remarkPattern = ofdpa.OFDPA_QOS_MODE_PCP
+        lspQos = QoS(index = 2,local2exp=local2exp,remarkPattern=remarkPattern,level=ofdpa.OFDPA_QOS_LEVEL_LSP)
+
+        if self.pe1 != None:
+            '''
+            config self.pe1
+            '''
+            lsp_w = self.pe1.addLsp(lspIndex = 1, inLabel = 1000,outLabel = 2000,nniPort = nniPort_w,\
+                                    nniVlan = nniVlan, dstMac = pe2PortMacW,Qos=lspQos)
+                
+            tunnel = self.pe1.addTunnel(tunnelIndex = 1, lsp_list = [lsp_w])
+            
+            pw1 = self.pe1.addPw(pwIndex = 1,inLabel = 10 ,outLabel = 20,uniPort = uniPort, \
+                                uniVlan = uniVlan, tunnel = tunnel,Qos=pwQos1)
+          
+            uniVlan = [11]
+            pw2 = self.pe1.addPw(pwIndex = 2,inLabel = 11 ,outLabel = 21,uniPort = uniPort, \
+                                uniVlan = uniVlan, tunnel = tunnel,Qos=pwQos2)
+             
+            self.assertEqual(self.pe1.apply_status(), 0,
+             'response status != expect status 0')
+        
+        if self.pe2 != None:
+            '''
+            config pe2
+            ''' 
+            lsp_w = self.pe2.addLsp(lspIndex = 1, inLabel = 2000,outLabel = 1000,nniPort = nniPort_w,
+                nniVlan = nniVlan,dstMac = pe1PortMacW,Qos=lspQos)
+                
+            tunnel = self.pe2.addTunnel(tunnelIndex = 1, lsp_list = [lsp_w])
+            
+            pw1 = self.pe2.addPw(pwIndex = 1,inLabel = 20 ,outLabel = 10,uniPort = uniPort,\
+                                 uniVlan = uniVlan, tunnel = tunnel,Qos=pwQos1)
+            uniVlan = [11]
+            pw2 = self.pe2.addPw(pwIndex = 2,inLabel = 21 ,outLabel = 11,uniPort = uniPort,\
+                                 uniVlan = uniVlan, tunnel = tunnel,Qos=pwQos2)            
+            
+            self.assertEqual(self.pe2.apply_status(), 0,
+                     'response status != expect status 0')
+                 
+
+
+    def delete(self):
         pass
 
 class SptnQosPcp(advanced_tests.AdvancedProtocol):
@@ -2949,6 +3395,89 @@ class SptnQosDscp(advanced_tests.AdvancedProtocol):
     def delete(self):
         pass
 
+class SptnQosLabelSwapNode(advanced_tests.AdvancedProtocol):
+    """
+    vpws test case for sptn Qos  
+    """      
+    def runTest(self):
+        self.pe1 = None
+        self.pe2 = None 
+        
+        self.deviceIsOnline = 0
+        self.waitDeviceOnline = 5 # wait timeout = 20s
+        while self.deviceIsOnline < 1 and self.waitDeviceOnline > 0:
+            for agt in self.controller.device_agents:
+                if self.pe1 == None and agt.dpid == custom.PE1_CONFIG['DPID']: 
+                    self.pe1 = DEVICE(agt = agt)
+                    self.deviceIsOnline += 1
+     
+            self.waitDeviceOnline -= 1
+            time.sleep(1) # sleep 1s
+        self.assertNotEquals(self.deviceIsOnline, 0,'no enough device is online')
+
+        self.active = True
+        while self.active:
+            cmd = raw_input('cmd: ')
+            print(cmd)
+            if cmd == 'basic':
+                self.addBasic()
+            elif cmd == 'd':
+                self.delete()
+            elif cmd == 'sync':
+                self.updateDevice()
+            elif cmd == 'exit':
+                self.active = False 
+            else:
+                print('unknown cmd') 
+                
+
+    def addBasic(self):
+
+        nniPortEast = 4
+        nniPortWest = 3
+
+        nniVlan = 100
+        pe1PortMacEast = self.pe1.agt.port_desc[nniPortEast - 1].hw_addr 
+        pe1PortMacWest = self.pe1.agt.port_desc[nniPortWest - 1].hw_addr 
+        
+        EastPortDstMac = [0x0e,0x5e,0x05,0x12,0xff,0xa0]
+        WestPortDstMac = [0x0e,0x5e,0x05,0x12,0xff,0xb0]
+        
+        # qos for swap
+        local2exp = [0,1,2,3,4,5,6,7]
+        remarkPattern = ofdpa.OFDPA_QOS_MODE_EXP
+        SwapQos = QoS(index = 2,local2exp=local2exp,remarkPattern=remarkPattern,level=ofdpa.OFDPA_QOS_LEVEL_LSP)
+
+
+
+        if self.pe1 != None:
+            '''
+            config self.pe1  as label swap node
+            '''
+            
+            swap_w2e = self.pe1.addSwap(swapIndex = 1, inLabel = 2000,outLabel = 3000,
+                                          nniPort_in = nniPortWest,
+                                          nniPort_out = nniPortEast,
+                                          nniVlan_in = nniVlan,
+                                          nniVlan_out = nniVlan,
+                                          dstMac = EastPortDstMac,
+                                          Qos = SwapQos)
+            
+            swap_e2w = self.pe1.addSwap(swapIndex = 2, inLabel = 4000,outLabel = 1000, 
+                                         nniPort_in = nniPortEast,
+                                         nniPort_out = nniPortWest, 
+                                         nniVlan_in = nniVlan,
+                                         nniVlan_out = nniVlan,
+                                         dstMac = WestPortDstMac,
+                                         Qos = SwapQos)
+            
+            self.assertEqual(self.pe1.apply_status(), 0,
+                     'response status != expect status 0')
+                 
+
+
+    def delete(self):
+        pass
 
 
 class SptnBasicStatistic(advanced_tests.AdvancedProtocol):
@@ -3100,6 +3629,7 @@ class SptnBasicStatistic(advanced_tests.AdvancedProtocol):
             print("LSP Tx Bytes                     :"+str(lspTx[1]))
             print("Duration sec                     :"+str(duration))            
             (acRx,acTx,duration) = self.pe2.getAcStat(pwIndex = 1)
+            print("PW 1")
             print("AC Rx Packets                    :"+str(acRx[0])) 
             print("AC Rx Bytes                      :"+str(acRx[1]))        
             print("AC Tx Packets                    :"+str(acTx[0])) 
@@ -3458,6 +3988,291 @@ class SptnPermanetProStatistic(advanced_tests.AdvancedProtocol):
             print("PW Tx Packets                    :"+str(pwTx[0])) 
             print("PW Tx Bytes                      :"+str(pwTx[1]))
             print("Duration sec                     :"+str(duration))
+
+class SptnMultiLspProt(advanced_tests.AdvancedProtocol):
+    """
+    vpws test case for multi-lsp  protection 
+    """      
+    def runTest(self):
+        self.pe1 = None
+        self.pe2 = None 
+        
+        self.deviceIsOnline = 0
+        self.waitDeviceOnline = 5 # wait timeout = 20s
+        while self.deviceIsOnline < 2 and self.waitDeviceOnline > 0:
+            for agt in self.controller.device_agents:
+                if self.pe1 == None and agt.dpid == custom.PE1_CONFIG['DPID']: 
+                    self.pe1 = DEVICE(agt = agt)
+                    self.deviceIsOnline += 1
+                elif self.pe2 == None and agt.dpid == custom.PE2_CONFIG["DPID"]:
+                    self.pe2 = DEVICE(agt = agt) 
+                    self.deviceIsOnline += 1                    
+            self.waitDeviceOnline -= 1
+            time.sleep(1) # sleep 1s
+        self.assertNotEquals(self.deviceIsOnline, 0,'no enough device is online')
+
+        self.active = True
+        while self.active:
+            cmd = raw_input('cmd: ')
+            print(cmd)
+            if cmd == 'addmlp':
+                self.addG8131Mlp()
+            elif cmd == 'basic':
+                self.addBasicVpws()
+            elif cmd == 'uw':
+                self.modifyG8131MlpWorker()
+            elif cmd == 'up':
+                self.modifyG8131MlpProtector()
+            elif cmd == 'sta':
+                self.showStatistic()
+            elif cmd == 'del':
+                self.deleteVpws()
+            elif cmd == 'sync':
+                self.updateDevice()
+            elif cmd == 'exit':
+                self.active = False  
+                
+                              
+    def updateDevice(self):
+        for agt in self.controller.device_agents:
+            if agt.dpid == custom.PE1_CONFIG['DPID']: 
+                self.pe1 = DEVICE(agt = agt)
+            elif agt.dpid == custom.PE2_CONFIG["DPID"]:
+                self.pe2 = DEVICE(agt = agt) 
+
+    def addBasicVpws(self):
+        uniPort = 3
+        uniVlan = [10]
+        nniPort_w = 1
+        nniPort_p = 4
+
+        nniVlan = 100
+        pe1PortMac_w = self.pe1.agt.getPortMac(nniPort_w) 
+        pe1PortMac_p = self.pe1.agt.getPortMac(nniPort_p) 
+
+        pe2PortMac_w = self.pe2.agt.getPortMac(nniPort_w) 
+        pe2PortMac_p = self.pe2.agt.getPortMac(nniPort_p) 
+
+  
+        for i in range(2):
+            if self.pe1 != None:
+                '''
+                config self.pe1
+                '''
+                lsp_w = self.pe1.addLsp(lspIndex = 2 * i + 2, inLabel = 1000 + i,outLabel = 3000 + i,nniPort = nniPort_w,\
+                                        nniVlan = nniVlan + 2 * i,dstMac = pe2PortMac_w)
+                lsp_p = self.pe1.addLsp(lspIndex = 2 * i + 3, inLabel = 2000 + i,outLabel = 4000 + i,nniPort = nniPort_p,\
+                                        nniVlan = nniVlan + 2 * i + 1,dstMac = pe2PortMac_p)
+                                
+                tunnel = self.pe1.addTunnel(tunnelIndex = i + 1, lsp_list = [lsp_w,lsp_p], protMode = ofdpa.OFDPA_PROT_MODE_ENABLE)
+                
+                uniVlan[0] += i
+                pw = self.pe1.addPw(pwIndex = i + 1 ,inLabel = 10 + i,outLabel = 20 + i,uniPort = uniPort, uniVlan = uniVlan, tunnel = tunnel)
+              
+                meg_w = netconf.MEG(megIndex = 1 + i,megName ='lspmeg-w' + str(i + 1) , lmepid = 10 ,rmepid = 20 )
+                self.pe1.addOam2Lsp(lsp = lsp_w, meg = meg_w)
+         
+                meg_p = netconf.MEG(megIndex = 100 + i,megName ='lspmeg-p' + str(i + 1) , lmepid = 30 ,rmepid = 40 )
+                self.pe1.addOam2Lsp(lsp = lsp_p, meg = meg_p)
+    
+                
+                self.assertEqual(self.pe1.apply_status(), 0,'response status != expect status 0')
+                time.sleep(5)
+            
+            if self.pe2 != None:
+                '''
+                config pe2
+                ''' 
+                lsp_w = self.pe2.addLsp(lspIndex = 2 * i + 2, inLabel = 3000 + i,outLabel = 1000 + i,nniPort = nniPort_w,\
+                                        nniVlan = nniVlan + 2 * i,dstMac = pe1PortMac_w)
+                lsp_p = self.pe2.addLsp(lspIndex = 2 * i + 3, inLabel = 4000 + i,outLabel = 2000 + i,nniPort = nniPort_p,\
+                                        nniVlan = nniVlan + 2 * i + 1,dstMac = pe1PortMac_p)
+                                
+                tunnel = self.pe2.addTunnel(tunnelIndex = i + 1, lsp_list = [lsp_w,lsp_p], protMode = ofdpa.OFDPA_PROT_MODE_ENABLE)
+                
+                uniVlan[0] += i
+                pw = self.pe2.addPw(pwIndex = i + 1 ,inLabel = 20 + i,outLabel = 10 + i,uniPort = uniPort, uniVlan = uniVlan, tunnel = tunnel)
+              
+                meg_w = netconf.MEG(megIndex = 1 + i,megName ='lspmeg-w' + str(i + 1) , lmepid = 20 ,rmepid = 10 )
+                self.pe2.addOam2Lsp(lsp = lsp_w, meg = meg_w)
+         
+                meg_p = netconf.MEG(megIndex = 100 + i,megName ='lspmeg-p' + str(i + 1) , lmepid = 40 ,rmepid = 30 )
+                self.pe2.addOam2Lsp(lsp = lsp_p, meg = meg_p)
+    
+                
+                self.assertEqual(self.pe2.apply_status(), 0,'response status != expect status 0')
+                time.sleep(5)
+                 
+    def addG8131Mlp(self): 
+        if self.pe1 != None:
+            (rc,info) = self.pe1.addMlp(mlpIndex = 1,mlpName = 'lsp-aps1',target = 1)
+            print('addG8131Mlp:'+ str(rc) + '(' + info + ')')
+        if self.pe2 != None:
+            (rc,info) = self.pe2.addMlp(mlpIndex = 1,mlpName = 'lsp-aps1',target = 1)
+            print('addG8131Mlp:'+ str(rc) + '(' + info + ')')
+
+    def modifyG8131MlpWorker(self): 
+        if self.pe1 != None:
+            (rc,info) = self.pe1.modifyTunnel(tunnelIndex = 1,oldLspIndex = 1,newLspIndex = 3)
+            print('modifyTunnel:'+ str(rc) + '(' + info + ')')
+            (rc,info) = self.pe1.updateMlp(mlpIndex = 1,target = 1)
+            print('updateMlp:'+ str(rc) + '(' + info + ')')
+        
+        if self.pe2 != None:
+            (rc,info) = self.pe2.modifyTunnel(tunnelIndex = 1,oldLspIndex = 1,newLspIndex = 3)
+            print('modifyTunnel:'+ str(rc) + '(' + info + ')')
+            (rc,info) = self.pe2.updateMlp(mlpIndex = 1,target = 1)
+            print('updateMlp:'+ str(rc) + '(' + info + ')')
+
+    def modifyG8131MlpProtector(self): 
+        if self.pe1 != None:
+            (rc,info) = self.pe1.modifyTunnel(tunnelIndex = 1,oldLspIndex = 2,newLspIndex = 3)
+            print('modifyTunnel:'+ str(rc) + '(' + info + ')')
+            (rc,info) = self.pe1.updateMlp(mlpIndex = 1,target = 1)
+            print('updateMlp:'+ str(rc) + '(' + info + ')')
+        
+        if self.pe2 != None:
+            (rc,info) = self.pe2.modifyTunnel(tunnelIndex = 1,oldLspIndex = 2,newLspIndex = 3)
+            print('modifyTunnel:'+ str(rc) + '(' + info + ')')
+            (rc,info) = self.pe2.updateMlp(mlpIndex = 1,target = 1)
+            print('updateMlp:'+ str(rc) + '(' + info + ')')
+    def deleteVpws(self):
+        if self.pe1 != None:
+            (rc,info) = self.pe1.deleteMlp(mlpIndex = 1)
+            print('deleteMlp:'+ str(rc) + '(' + info + ')')
+            
+            time.sleep(1)
+
+            (rc,info)  = self.pe1.removeOamFromLsp(lspIndex = 1)
+            print('removeOamFromLsp:'+ str(rc) + '(' + info + ')')
+            (rc,info)  = self.pe1.removeOamFromLsp(lspIndex = 2)
+            print('removeOamFromLsp:'+ str(rc) + '(' + info + ')')
+            (rc,info)  = self.pe1.removeOamFromLsp(lspIndex = 3)
+            print('removeOamFromLsp:'+ str(rc) + '(' + info + ')')
+            
+            time.sleep(1)
+            
+            (rc,info) = self.pe1.deletePw(pwIndex = 1)
+            print('deletePw:'+ str(rc) + '(' + info + ')')
+
+            time.sleep(1)
+
+            (rc,info) = self.pe1.deleteTunnel(tunnelIndex = 1)
+            print('deleteTunnel:'+ str(rc) + '(' + info + ')')
+
+            time.sleep(1)
+            
+            (rc,info) = self.pe1.deleteLsp(lspIndex = 1)
+            print('deleteLsp:'+ str(rc) + '(' + info + ')')
+            
+            time.sleep(1)
+            
+            (rc,info) = self.pe1.deleteLsp(lspIndex = 2)
+            print('deleteLsp:'+ str(rc) + '(' + info + ')')
+            
+            time.sleep(1)
+      
+            (rc,info) = self.pe1.deleteLsp(lspIndex = 3)
+            print('deleteLsp:'+ str(rc) + '(' + info + ')')
+        
+        if self.pe2 != None:
+            (rc,info) = self.pe2.deleteMlp(mlpIndex = 1)
+            print('deleteMlp:'+ str(rc) + '(' + info + ')')
+            
+            time.sleep(1)
+
+            (rc,info)  = self.pe2.removeOamFromLsp(lspIndex = 1)
+            print('removeOamFromLsp:'+ str(rc) + '(' + info + ')')
+            (rc,info)  = self.pe2.removeOamFromLsp(lspIndex = 2)
+            print('removeOamFromLsp:'+ str(rc) + '(' + info + ')')
+            (rc,info)  = self.pe2.removeOamFromLsp(lspIndex = 3)
+            print('removeOamFromLsp:'+ str(rc) + '(' + info + ')')
+            
+            time.sleep(1)
+            
+            (rc,info) = self.pe2.deletePw(pwIndex = 1)
+            print('deletePw:'+ str(rc) + '(' + info + ')')
+
+            time.sleep(1)
+
+            (rc,info) = self.pe2.deleteTunnel(tunnelIndex = 1)
+            print('deleteTunnel:'+ str(rc) + '(' + info + ')')
+
+            time.sleep(1)
+            
+            (rc,info) = self.pe2.deleteLsp(lspIndex = 1)
+            print('deleteLsp:'+ str(rc) + '(' + info + ')')
+            
+            time.sleep(1)
+            
+            (rc,info) = self.pe2.deleteLsp(lspIndex = 2)
+            print('deleteLsp:'+ str(rc) + '(' + info + ')')
+            
+            time.sleep(1)
+      
+            (rc,info) = self.pe2.deleteLsp(lspIndex = 3)
+            print('deleteLsp:'+ str(rc) + '(' + info + ')')        
+    def showStatistic(self):
+        if self.pe1 != None:
+            print("PE1 STAT----------------------")
+            print("Worker LSP 1")
+            (lspRx,lspTx,duration) = self.pe1.getLspStat(lspIndex = 1)
+            print("LSP Rx Packets                   :"+str(lspRx[0])) 
+            print("LSP Rx Bytes                     :"+str(lspRx[1]))        
+            print("LSP Tx Packets                   :"+str(lspTx[0])) 
+            print("LSP Tx Bytes                     :"+str(lspTx[1]))
+            print("Duration sec                     :"+str(duration))
+            print("Protector LSP 2")
+            (lspRx,lspTx,duration) = self.pe1.getLspStat(lspIndex = 2)
+            print("LSP Rx Packets                   :"+str(lspRx[0])) 
+            print("LSP Rx Bytes                     :"+str(lspRx[1]))        
+            print("LSP Tx Packets                   :"+str(lspTx[0])) 
+            print("LSP Tx Bytes                     :"+str(lspTx[1]))
+            print("Duration sec                     :"+str(duration))
+            print("PW 1")
+            (acRx,acTx,duration) = self.pe1.getAcStat(pwIndex = 1)
+            print("AC Rx Packets                    :"+str(acRx[0])) 
+            print("AC Rx Bytes                      :"+str(acRx[1]))        
+            print("AC Tx Packets                    :"+str(acTx[0])) 
+            print("AC Tx Bytes                      :"+str(acTx[1]))
+            print("Duration sec                     :"+str(duration))
+            (pwRx,pwTx,duration) = self.pe1.getPwStat(pwIndex = 1) 
+            print("PW Rx Packets                    :"+str(pwRx[0])) 
+            print("PW Rx Bytes                      :"+str(pwRx[1]))        
+            print("PW Tx Packets                    :"+str(pwTx[0])) 
+            print("PW Tx Bytes                      :"+str(pwTx[1]))
+            print("Duration sec                     :"+str(duration))
+       
+        if self.pe2 != None:
+            print("PE2 STAT----------------------")
+            print("Worker LSP 1")
+            (lspRx,lspTx,duration) = self.pe2.getLspStat(lspIndex = 1)
+            print("LSP Rx Packets                   :"+str(lspRx[0])) 
+            print("LSP Rx Bytes                     :"+str(lspRx[1]))        
+            print("LSP Tx Packets                   :"+str(lspTx[0])) 
+            print("LSP Tx Bytes                     :"+str(lspTx[1]))
+            print("Duration sec                     :"+str(duration))
+            print("Protector LSP 2")
+            (lspRx,lspTx,duration) = self.pe2.getLspStat(lspIndex = 2)
+            print("LSP Rx Packets                   :"+str(lspRx[0])) 
+            print("LSP Rx Bytes                     :"+str(lspRx[1]))        
+            print("LSP Tx Packets                   :"+str(lspTx[0])) 
+            print("LSP Tx Bytes                     :"+str(lspTx[1]))
+            print("Duration sec                     :"+str(duration))
+            print("PW 1")
+            (acRx,acTx,duration) = self.pe2.getAcStat(pwIndex = 1)
+            print("AC Rx Packets                    :"+str(acRx[0])) 
+            print("AC Rx Bytes                      :"+str(acRx[1]))        
+            print("AC Tx Packets                    :"+str(acTx[0])) 
+            print("AC Tx Bytes                      :"+str(acTx[1]))
+            print("Duration sec                     :"+str(duration))
+            (pwRx,pwTx,duration) = self.pe2.getPwStat(pwIndex = 1) 
+            print("PW Rx Packets                    :"+str(pwRx[0])) 
+            print("PW Rx Bytes                      :"+str(pwRx[1]))        
+            print("PW Tx Packets                    :"+str(pwTx[0])) 
+            print("PW Tx Bytes                      :"+str(pwTx[1]))
+            print("Duration sec                     :"+str(duration))
+
 
 class SptnPwProStatistic(advanced_tests.AdvancedProtocol):
     """
