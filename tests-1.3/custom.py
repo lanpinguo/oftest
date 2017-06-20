@@ -8,7 +8,7 @@ PE1 CONFIG
 '''
 PE1_CONFIG = {
 
-    'DPID'          : 1                                ,
+    'DPID'          : 1               ,
     'UNI_PORT'      : 3                                ,
     'UNI_VLAN'      : 10                               ,
     'LSP_ING_LABEL' : 1000                             ,

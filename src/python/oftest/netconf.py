@@ -80,6 +80,9 @@ class Netconf():
             netconf_cmd = "connect --login raisecom " + str(self.switch_addr)
             self.child.sendline(s = netconf_cmd)
             (rc , before , after) = self.wait_cmd(expects = ['netconf>','yes/no','failed.','password:','connect:'])
+            time.sleep(0.5)
+            #print(before)
+            #print(after)
             if rc == 1:
                 self.child.sendline(s = "yes")
                 (rc , before , after) = self.wait_cmd( expects = ['netconf>','password:'])
@@ -151,16 +154,31 @@ class Netconf():
             return (-1 , "connection is not created")
 
 
+class LocalResourcePool():
+    def __init__(self):
+        self.localOpenFlowMpId = 0
+    def getLocalOpenFlowMpId(self):
+        self.localOpenFlowMpId += 1
+        return self.localOpenFlowMpId
+    
+    
+resPool = LocalResourcePool()    
+
 class MEG():
     """
     meg root class
     """
-    def __init__(self,megIndex,megName,lmepid,rmepid,type=1):
+    
+    def __init__(self,megIndex,megName,lmepid,rmepid,type=1,localMpId=None):
         self.megIndex = megIndex
         self.megName = megName
         self.lmepid = lmepid
         self.rmepid = rmepid
         self.type = type 
+        if localMpId is None:
+            self.localMpId = resPool.getLocalOpenFlowMpId()
+        else:
+            self.localMpId = localMpId
         try:
             self.tree = ET.parse("ofconfig/tpoam_template.xml")
             self.root = self.tree.getroot()
@@ -184,14 +202,14 @@ class MEG():
                 managedInstanceType.text = 'pw' 
             Local_MEP = g8131_meg.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}Local_MEP')
             openFlowMpId = Local_MEP.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}openFlowMpId')
-            openFlowMpId.text = str(self.lmepid)
+            openFlowMpId.text = str(self.localMpId)
             mepId = Local_MEP.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}mepId')
             mepId.text = str(self.lmepid)
             
             
             Remote_MEP = g8131_meg.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}Remote_MEP')
             openFlowMpId = Remote_MEP.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}openFlowMpId')
-            openFlowMpId.text = str(self.rmepid)
+            openFlowMpId.text = str(self.localMpId)
             mepId = Remote_MEP.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}mepId')
             mepId.text = str(self.rmepid)
         self.tree.write(self.fileName) 
@@ -216,14 +234,14 @@ class MEG():
             
             Local_MEP = g8131_meg.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}Local_MEP')
             openFlowMpId = Local_MEP.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}openFlowMpId')
-            openFlowMpId.text = str(self.lmepid)
+            openFlowMpId.text = str(self.localMpId)
             mepId = Local_MEP.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}mepId')
             mepId.text = str(self.lmepid)
             
             
             Remote_MEP = g8131_meg.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}Remote_MEP')
             openFlowMpId = Remote_MEP.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}openFlowMpId')
-            openFlowMpId.text = str(self.rmepid)
+            openFlowMpId.text = str(self.localMpId)
             mepId = Remote_MEP.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}mepId')
             mepId.text = str(self.rmepid)
         self.tree.write(self.fileName)   
