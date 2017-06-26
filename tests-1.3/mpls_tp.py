@@ -2809,7 +2809,7 @@ class SptnLspProt(advanced_tests.AdvancedProtocol):
         self.active = True
         while self.active:
             cmd = raw_input('cmd: ')
-            print(cmd)
+            #print(cmd)
             if cmd == 'addmlp':
                 self.addG8131Mlp()
             elif cmd == 'basic':
@@ -2834,14 +2834,15 @@ class SptnLspProt(advanced_tests.AdvancedProtocol):
                 self.pe2 = DEVICE(agt = agt) 
 
     def addBasicVpws(self):
-        uniPort = 3
-        pe2UniPort = 9
         uniVlan = [10]
+        
+        uniPort = 3
         nniPort_w = 1
         nniPort_p = 2
 
-        pe2NniPort_w = 11
-        pe2NniPort_p = 12
+        pe2UniPort = 13 
+        pe2NniPort_w = 9
+        pe2NniPort_p = 11
         
         nniVlan = 100
         pe1PortMac_w = self.pe1.agt.getPortMac(nniPort_w) 

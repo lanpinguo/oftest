@@ -68,7 +68,7 @@ CONFIG_DEFAULT = {
     "controller_host"    : "0.0.0.0",  # For passive bind
     "controller_port"    : 6633,
     "switch_ip"          : None,  # If not none, actively connect to switch
-    "platform"           : "eth",
+    "platform"           : "tstc-proxy",
     "platform_args"      : None,
     "platform_dir"       : os.path.join(ROOT_DIR, "platforms"),
     "interfaces"         : [],
@@ -532,7 +532,11 @@ except:
     raise
 
 if not config["port_map"]:
-    die("Interface port map was not defined by the platform. Exiting.")
+    if config["platform"] != "tstc-proxy":
+        die("Interface port map was not defined by the platform. Exiting.")
+    else :
+        logging.warn("Interface port map was not defined by the platform.")
+    
 
 logging.debug("Configuration: " + str(config))
 logging.info("OF port map: " + str(config["port_map"]))

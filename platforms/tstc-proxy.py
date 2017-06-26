@@ -1,7 +1,7 @@
 """
-Remote platform
+Sprient Test Center  platform
 
-This platform uses physical ethernet interfaces.
+This platform uses Sprient Test Center interfaces.
 """
 
 # Update this dictionary to suit your environment.
