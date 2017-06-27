@@ -110,7 +110,9 @@ class AdvancedProtocol(AdvancedTest):
         if not cond:
             logging.error("** FAILED ASSERTION: " + msg)
         unittest.TestCase.assertTrue(self, cond, msg)
-'''
+
+
+
 class AdvancedDataPlane(AdvancedProtocol):
     """
     Root class that sets up the controller and dataplane
@@ -136,5 +138,7 @@ class AdvancedDataPlane(AdvancedProtocol):
         if config["log_dir"] != None:
             self.dataplane.stop_pcap()
         AdvancedProtocol.tearDown(self)
-'''
+
+
+
 

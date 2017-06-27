@@ -26,6 +26,8 @@ from threading import Condition
 import ofutils
 import netutils
 from pcap_writer import PcapWriter
+from platform import platform
+from oftest import stc_proxy
 
 if "linux" in sys.platform:
     import afpacket
@@ -134,6 +136,30 @@ class DataPlanePortPcap:
     def up(self):
         pass
 
+class DataPlanePortStc:
+    """
+    Alternate port implementation using Spirent test centetr. 
+    """
+
+    def __init__(self,interface_name, port_number):
+        pass
+
+    def fileno(self):
+
+        pass
+
+    def recv(self):
+        pass
+
+    def send(self, packet):
+        pass
+
+    def down(self):
+        pass
+
+    def up(self):
+        pass
+
 class DataPlane(Thread):
     """
     This class provides methods to send and receive packets on the dataplane.
@@ -182,46 +208,68 @@ class DataPlane(Thread):
         #
         if "dataplane" in self.config and "portclass" in self.config["dataplane"]:
             self.dppclass = self.config["dataplane"]["portclass"]
+        elif "tstc" in self.config["platform"]:
+            self.logger.info( "dataplane use stc adapter")
+            self.dppclass = DataPlanePortStc
         elif "linux" in sys.platform:
             self.dppclass = DataPlanePortLinux
         else:
             self.dppclass = DataPlanePortPcap
 
+        if "tstc" in self.config["platform"]:
+            self.stc = stc_proxy.STC(remoteRpcServerIp = self.config["stcSeriverIp"], port = self.config["stcServierPort"])
+            self.chassisIp = self.config["chassisIp"]
+            self.stc_version = self.stc.get("system1","-Version")  
+            self.logger.info("Spirent test center version-%s" % self.stc_version)  
+            log_filename_stc = time.strftime("remote_%Y_%m_%d_%H_%M_%S.log",time.localtime(time.time()))
+            cResult = self.stc.config("automationoptions -logTo \"" + log_filename_stc + "\" -logLevel DEBUG")  
+            self.logger.info("enable stc log to file . result %s ." % cResult)
+            
         self.start()
 
+
+    def __def__(self):
+        pass
+        Thread.__def__(self)
+    
     def run(self):
         """
         Activity function for class
         """
         while not self.killed:
-            sockets = [self.waker] + self.ports.values()
-            try:
-                sel_in, sel_out, sel_err = select.select(sockets, [], [], 1)
-            except:
-                print sys.exc_info()
-                self.logger.error("Select error, exiting")
-                break
-
-            with self.cvar:
-                for port in sel_in:
-                    if port == self.waker:
-                        self.waker.wait()
-                        continue
-                    else:
-                        # Enqueue packet
-                        pkt, timestamp = port.recv()
-                        port_number = port._port_number
-                        self.logger.debug("Pkt len %d in on port %d",
-                                          len(pkt), port_number)
-                        if self.pcap_writer:
-                            self.pcap_writer.write(pkt, timestamp, port_number)
-                        queue = self.packet_queues[port_number]
-                        if len(queue) >= self.MAX_QUEUE_LEN:
-                            # Queue full, throw away oldest
-                            queue.pop(0)
-                            self.logger.debug("Discarding oldest packet to make room")
-                        queue.append((pkt, timestamp))
-                self.cvar.notify_all()
+            
+            if "tstc" in self.config["platform"] :
+                #print time.asctime()
+                time.sleep(1)
+            else:
+                sockets = [self.waker] + self.ports.values()
+                try:
+                    sel_in, sel_out, sel_err = select.select(sockets, [], [], 1)
+                except:
+                    print sys.exc_info()
+                    self.logger.error("Select error, exiting")
+                    break
+    
+                with self.cvar:
+                    for port in sel_in:
+                        if port == self.waker:
+                            self.waker.wait()
+                            continue
+                        else:
+                            # Enqueue packet
+                            pkt, timestamp = port.recv()
+                            port_number = port._port_number
+                            self.logger.debug("Pkt len %d in on port %d",
+                                              len(pkt), port_number)
+                            if self.pcap_writer:
+                                self.pcap_writer.write(pkt, timestamp, port_number)
+                            queue = self.packet_queues[port_number]
+                            if len(queue) >= self.MAX_QUEUE_LEN:
+                                # Queue full, throw away oldest
+                                queue.pop(0)
+                                self.logger.debug("Discarding oldest packet to make room")
+                            queue.append((pkt, timestamp))
+                    self.cvar.notify_all()
 
         self.logger.info("Thread exit")
 
@@ -232,11 +280,14 @@ class DataPlane(Thread):
         @param port_number The port number used to refer to the port
         Stashes the port number on the created port object.
         """
-        self.ports[port_number] = self.dppclass(interface_name, port_number)
-        self.ports[port_number]._port_number = port_number
-        self.packet_queues[port_number] = []
-        # Need to wake up event loop to change the sockets being selected on.
-        self.waker.notify()
+        if "tstc" in self.config["platform"]:
+            self.ports[port_number] = interface_name
+        else:
+            self.ports[port_number] = self.dppclass(interface_name, port_number)
+            self.ports[port_number]._port_number = port_number
+            self.packet_queues[port_number] = []
+            # Need to wake up event loop to change the sockets being selected on.
+            self.waker.notify()
 
     def send(self, port_number, packet):
         """
