@@ -121,28 +121,89 @@ class DpProfile():
                                              "-OffsetReference" ,
                                              "{Ipv4_1.sourceAddr}")
                                     
-        lstStreamBlockInfo = self.stc.perform( "StreamBlockGetInfo", "-StreamBlock", StreamBlock[0])  
+        #lstStreamBlockInfo = self.stc.perform( "StreamBlockGetInfo", "-StreamBlock", StreamBlock[0])  
 
+        StreamBlock[1] = self.stc.create(  "StreamBlock" ,
+                                            "-under" , 
+                                            RxPort,
+                                            "-frameConfig",
+                                            "\"\"",
+                                            "-FrameLengthMode" , 
+                                            "FIXED",
+                                            "-FixedFrameLength" ,
+                                            "256" ,
+                                            "-maxFrameLength",
+                                            "1200",
+                                            "-name",
+                                            "StreamBlock_1")
+
+
+        StrEthII_2 = self.stc.create( "ethernet:EthernetII",
+                                     "-under",
+                                     StreamBlock[1],
+                                     "-name",
+                                     "eht_1",
+                                     "-srcMac",
+                                     "11:11:11:11:11:11" ,
+                                     "-dstMac" ,
+                                     "22:22:22:22:22:22" )
+    
+        # Add a Vlan container object.
+        vlanContainer_2 = self.stc.create( "vlans", "-under", StrEthII_2)
+          
+        # Add a Vlan header.
+        self.stc.create( "Vlan", "-under", vlanContainer_2 ,"-pri", "000", "-cfi" , "0" , "-id", "10")
+                                      
+                                     
+        #Add IPv4ͷ 
+        strIPv4_2 = self.stc.create( "ipv4:IPv4",
+                                    "-under",
+                                    StreamBlock[1],
+                                    "-name",
+                                    "Ipv4_1", 
+                                    "-sourceAddr",
+                                    "10.10.10.10",
+                                    "-destAddr",
+                                    "20.20.20.20")
+    
+        #Add TCP
+        strTcp_2 = self.stc.create( "tcp:Tcp",
+                                    "-under ",
+                                    StreamBlock[1],
+                                    "-name",
+                                    "tcp1",
+                                    "-sourcePort",
+                                    "10",
+                                    "-destPort ",
+                                    "20 ")    
+    
+    
+        #����StreamBlock(1)��modifier ����ѡ�� RangeModifer ��RandomModifier ��TableModifier
+    
+        #StreamBlock1 ԴIp ���
+    
+        RandomModifier_2 = self.stc.create(  "RandomModifier",
+                                             "-under" ,
+                                             StreamBlock[1],
+                                             "-Mask" ,
+                                             "{0.0.0.255}"  ,
+                                             "-RecycleCount" ,
+                                             "10" ,
+                                             "-EnableStream" ,
+                                             "FALSE" ,
+                                             "-OffsetReference" ,
+                                             "{Ipv4_1.sourceAddr}")
 
     
                                              
-        #�ڷ��Ͷ˿ڴ��� generator
+        # generator1
     
         generator1 = self.stc.get( TxPort, "-children-Generator") 
     
         self.stc.config(generator1, "-Name", "Generator_1")
     
-        #���� generator1 ,
-    
         generatorConfig1 = self.stc.get(generator1, "-children-GeneratorConfig")
 
-        #-------------------------------����˵��--------------------------------------------
-        #SchedulingModes���ԣ���ѡ������PORT_BASED ��RATE_BASED ��PRIORITY_BASED ��MANUAL_BASED
-        #DurationMode���ԣ���ѡ������CONTINUOUS ��BURSTS ��SECONDS �ȣ�
-        #LoadUnit���ԣ���ѡ������PERCENT_LINE_RATE ��FRAMES_PER_SECOND ��BITS_PER_SECOND ��
-        #                  KILOBITS_PER_SECOND ��MEGABITS_PER_SECOND ��INTER_BURST_GAP
-        #---------------------------------------------------------------------------------
-    
         self.stc.config( generatorConfig1,
                           "-SchedulingMode",
                           "PORT_BASED" ,
@@ -158,24 +219,42 @@ class DpProfile():
                           "1",
                           "-LoadUnit",
                           "PERCENT_LINE_RATE")
-                          
-                          
+        
+        
+        
+        # generator2                         
+        generator2 = self.stc.get( RxPort, "-children-Generator") 
     
-        #�ڽ��ն˿ڴ���analyzer   
+        self.stc.config(generator2, "-Name", "Generator_1")
+        generatorConfig2 = self.stc.get(generator2, "-children-GeneratorConfig")
+        self.stc.config( generatorConfig2,
+                          "-SchedulingMode",
+                          "PORT_BASED" ,
+                          "-DurationMode",
+                          "BURSTS" ,
+                          "-BurstSize",
+                          " 1",
+                          "-Duration",
+                          "10000", 
+                          "-LoadMode",
+                          "FIXED",
+                          "-FixedLoad",
+                          "1",
+                          "-LoadUnit",
+                          "PERCENT_LINE_RATE")                         
+    
+    
+    
+    
+    
+    
+        #analyzer 1   
         analyzer1 = self.stc.get( RxPort, "-children-Analyzer")
 
-        #����analyzer
-    
         self.stc.config( analyzer1, "-Name", "Analyzer_1")
     
         analyzerConfig1 = self.stc.get( analyzer1 , "-children-AnalyzerConfig")
 
-    
-        #-------------------------------����˵��--------------------------------------------
-        #TimestampLatchMode ���� ����ѡ������START_OF_FRAME ��END_OF_FRAME
-        #
-        #---------------------------------------------------------------------------------
-    
         self.stc.config(  analyzerConfig1, 
                            "-TimestampLatchMode" ,
                            "END_OF_FRAME" ,
@@ -188,10 +267,29 @@ class DpProfile():
                            "-AdvSeqCheckerLateThreshold" ,
                            "1000" ,
                            "-Name" ,
-                           "AnalyzerConfig_1")
+                           "AnalyzerConfig_2")
+        
     
-        #����ʵʱ�����ȡ
-        #��������� ��ű���ͬ·���£�����ļ���Ϊ result
+        #analyzer 2   
+        analyzer2 = self.stc.get( TxPort, "-children-Analyzer")
+
+        self.stc.config( analyzer2, "-Name", "Analyzer_2")
+    
+        analyzerConfig2 = self.stc.get( analyzer2 , "-children-AnalyzerConfig")
+
+        self.stc.config(  analyzerConfig2, 
+                           "-TimestampLatchMode" ,
+                           "END_OF_FRAME" ,
+                           "-JumboFrameThreshold" ,
+                           "1500" ,
+                           "-OversizeFrameThreshold" ,
+                           "2000" ,
+                           "-UndersizeFrameThreshold" ,
+                           "64" ,
+                           "-AdvSeqCheckerLateThreshold" ,
+                           "1000" ,
+                           "-Name" ,
+                           "AnalyzerConfig_2")
     
         generatorResult = self.stc.subscribe( "-Parent" ,
                                                ProjectA ,
@@ -203,7 +301,19 @@ class DpProfile():
                                                "GeneratorPortResults",
                                                "-filenameprefix",
                                                "result")
-    
+
+        generatorResult2 = self.stc.subscribe( "-Parent" ,
+                                               ProjectA ,
+                                               "-ResultParent" ,
+                                               RxPort ,
+                                               "-ConfigType",
+                                               "Generator",
+                                               "-resulttype",
+                                               "GeneratorPortResults",
+                                               "-filenameprefix",
+                                               "result")   
+        
+         
         analyzerResult = self.stc.subscribe( "-Parent",
                                               ProjectA,
                                               "-ResultParent",
@@ -214,18 +324,27 @@ class DpProfile():
                                               "AnalyzerPortResults",
                                               "-filenameprefix",
                                               "result" )
-    
-        #���ӻ���
+        analyzerResult2 = self.stc.subscribe( "-Parent",
+                                              ProjectA,
+                                              "-ResultParent",
+                                              TxPort ,
+                                              "-ConfigType",
+                                              "Analyzer" ,
+                                              "-resulttype",
+                                              "AnalyzerPortResults",
+                                              "-filenameprefix",
+                                              "result" )   
+
     
         resultReturn = self.stc.connect(chassisAddress)
     
-        #ռ�ö˿�
+
     
         resultReturn = self.stc.reserve( "//" + chassisAddress + "/" + slotPort1)
     
         resultReturn = self.stc.reserve( "//" + chassisAddress + "/" + slotPort2)
     
-        #����ץ���˿�
+
     
         captureRx = self.stc.get(RxPort, "-children-capture")
 
@@ -233,15 +352,7 @@ class DpProfile():
 
     
         
-        
-    
-        #-----------------------------------����˵��-------------------------------------
-        #
-        #mode ���ԣ���ѡ������REGULAR_MODE��ץ���б��ģ� SIG_MODE��ץ��signature�ı��ġ�
-        #Buffermode ���ԣ� ��ѡ������WRAP ��������д��ʱ���ع�������ץ����   STOP_ON_FULL ����������д��ʱ��ֹͣ
-        #srcMode ���ԣ���ѡ������ TX_MODE �� RX_MODE �� TX_RX_MODE
-        #
-        #-----------------------------------------------------------------------------
+  
     
         self.stc.config(captureRx, "-mode" ,"REGULAR_MODE", "-BufferMode", "WRAP" ,"-srcMode" ,"RX_MODE" )
         self.stc.config(captureTx, "-mode" ,"REGULAR_MODE", "-BufferMode", "WRAP" ,"-srcMode" ,"TX_RX_MODE" )
@@ -249,7 +360,7 @@ class DpProfile():
     
         #self.stc.perform StreamBlockUpdate -streamBlock "$StreamBlock(2)"
     
-        #�����߼��˿�������˿ڵ�ӳ��
+
     
         resultReturn = self.stc.perform( "setupPortMappings")
     
@@ -257,54 +368,60 @@ class DpProfile():
         print "apply"
         resultReturn = self.stc.apply()
 
-        #-------------------------------------------------------------------------------
-        #                                     �������
-        #-------------------------------------------------------------------------------
-    
-        #��ʼanalyzer
+
+        #start analyzer
 
         analyzerCurrent = self.stc.get(RxPort ,"-children-analyzer")
-    
         self.stc.perform ("analyzerStart" ,"-analyzerList" ,analyzerCurrent)
     
-        #����ץ��
-
+        analyzerCurrent2 = self.stc.get(TxPort ,"-children-analyzer")
+        self.stc.perform ("analyzerStart" ,"-analyzerList" ,analyzerCurrent2)    
+ 
+        
+        #start capture
         self.stc.perform( "CaptureStart", "-captureProxyId" ,captureRx)
         self.stc.perform( "CaptureStart", "-captureProxyId" ,captureTx)
-        #��ʼ����
-
+        
+        
+        #start generator
         generatorCurrent = self.stc.get(TxPort, "-children-generator")
     
         self.stc.perform("generatorStart", "-generatorList", generatorCurrent)
-    
-        #�ȴ�ִ�н���
 
-        self.stc.sleep( "20")
+        #start generator
+        generatorCurrent2 = self.stc.get(RxPort, "-children-generator")
     
-        # ֹͣ����
+        self.stc.perform("generatorStart", "-generatorList", generatorCurrent2)
+  
+        
+        #sleep 10s
+        self.stc.sleep( "10")
     
+    
+        # stop generator    
         self.stc.perform( "generatorStop", "-generatorList" ,generatorCurrent)
-    
-        #ֹͣץ��
+        self.stc.perform( "generatorStop", "-generatorList" ,generatorCurrent2)
+        
+            
+        #stop capture
         self.stc.perform( "CaptureStop" ,"-captureProxyId" ,captureRx)
         self.stc.perform( "CaptureStop" ,"-captureProxyId" ,captureTx)
     
-        #����ץ�����
+        #save captured data
         print "Save Capture Data"
         self.stc.perform( "CaptureDataSave", "-captureProxyId", captureRx ,"-FileName" ,"test_stc_rx.pcap" ,"-FileNameFormat" ,"PCAP")
         self.stc.perform( "CaptureDataSave", "-captureProxyId", captureTx ,"-FileName" ,"test_stc_tx.pcap" ,"-FileNameFormat" ,"PCAP")
     
-        #ֹͣanalyzer
-    
+        #stop analyzer    
         self.stc.perform( "analyzerStop","-analyzerList" ,analyzerCurrent)
-    
+        self.stc.perform( "analyzerStop","-analyzerList" ,analyzerCurrent2)    
         
-    # This is the same handle as above.
-    #
+        # This is the same handle as above.
+
         hAnalyzerPortResults = self.stc.get( analyzerCurrent, "-children-AnalyzerPortResults")
     
         
-        print "\n\nAnalyzer Port Results"
+        print "\n\nAnalyzer Port Results 1"
              
         print "\tJumbo:\t %s " % self.stc.get(hAnalyzerPortResults ,"-JumboFrameCount")
         print "\tSig:\t %s " % self.stc.get(hAnalyzerPortResults ,"-sigFrameCount")
@@ -314,19 +431,33 @@ class DpProfile():
         
         self.totalFrameCount = int(self.stc.get(hAnalyzerPortResults ,"-totalFrameCount"))
         print "\tTotal:\t %d " % self.totalFrameCount
+  
      
-        
-        #�ͷŶ˿�
+        hAnalyzerPortResults2 = self.stc.get( analyzerCurrent2, "-children-AnalyzerPortResults")
     
+        
+        print "\n\nAnalyzer Port Results 2"
+             
+        print "\tJumbo:\t %s " % self.stc.get(hAnalyzerPortResults2 ,"-JumboFrameCount")
+        print "\tSig:\t %s " % self.stc.get(hAnalyzerPortResults2 ,"-sigFrameCount")
+        print "\tUnder:\t %s " % self.stc.get(hAnalyzerPortResults2 ,"-UndersizeFrameCount")
+        print "\tOver:\t %s " % self.stc.get(hAnalyzerPortResults2 ,"-oversizeFrameCount")
+        print "\tMaxLen:\t %s " % self.stc.get(hAnalyzerPortResults2 ,"-MaxFrameLength")
+        
+        self.totalFrameCount2 = int(self.stc.get(hAnalyzerPortResults2 ,"-totalFrameCount"))
+        print "\tTotal:\t %d " % self.totalFrameCount2        
+
+
+
         self.stc.release( self.stc.get(TxPort, "-location"))
     
         self.stc.release( self.stc.get(RxPort, "-location"))
     
-        #�����Ͽ�����
+
     
         self.stc.disconnect( chassisAddress)
     
-        #ɾ�� project
+        #delete project
         print "delete project"
         self.stc.delete( ProjectA)
     
