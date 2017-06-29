@@ -227,7 +227,7 @@ class DataPlane(Thread):
                 self.stc_version = self.stc.get("system1","-Version")  
                 self.logger.info("Spirent test center version-%s" % self.stc_version)  
                 log_filename_stc = time.strftime("remote_%Y_%m_%d_%H_%M_%S.log",time.localtime(time.time()))
-                cResult = self.stc.config("automationoptions -logTo \"" + log_filename_stc + "\" -logLevel DEBUG")  
+                cResult = self.stc.config("automationoptions -logTo \"" + "log/" + log_filename_stc + "\" -logLevel DEBUG")  
                 self.logger.info("enable stc log to file . result %s ." % cResult)
 
                 cResult = self.stc.connect(self.chassisIp)
@@ -428,9 +428,9 @@ class DataPlane(Thread):
         
         if "tstc" in self.config["platform"]:
             
-            for p in list(self.ports.keys()):
-                self.logger.info( "release port : %s " % self.ports[p])
-                self.stc.release( self.stc.get(self.ports[p], "-location"))
+            for key in self.ports.keys():
+                self.logger.info( "release port : %s " % self.ports[key])
+                self.stc.release( self.stc.get(self.ports[key], "-location"))
             
             self.stc.disconnect( self.chassisIp)
             

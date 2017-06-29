@@ -91,7 +91,7 @@ CONFIG_DEFAULT = {
     "default_negative_timeout" : 0.01,
     "minsize"            : 0,
     "random_seed"        : None,
-    "disable_ipv6"       : False,
+    "disable_ipv6"       : True,
     "random_order"       : False,
 
     # Other configuration
