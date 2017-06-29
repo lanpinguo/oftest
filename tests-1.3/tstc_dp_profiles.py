@@ -14,35 +14,14 @@ class DpProfile():
         if dataplane :
             self.stc = dataplane.stc
  
-    def config(self,txPort,rxPort):
+    def config(self,stcProject,txPort,rxPort):
         chassisAddress = self.dataplane.chassisIp
     
-        slotPort1 = txPort
+        TxPort = txPort
     
-        slotPort2 = rxPort
+        RxPort = rxPort
      
-
-        ProjectA  = self.stc.create("project")
-        print  ProjectA   
-    
-
-        TxPort = self.stc.create( "port","-under" , ProjectA)
-
-        RxPort = self.stc.create( "port","-under" , ProjectA)
-
-        portReturn = self.stc.config( TxPort, " -location " , "//" + chassisAddress + '/' + slotPort1)
-
-        portReturn = self.stc.config( RxPort , " -location " , "//" + chassisAddress + '/' + slotPort2)
-
-        
-    
-        
-
-        EthernetCopper = [" "," "]
-        EthernetCopper[0] = self.stc.create( "EthernetCopper" ,"-under",TxPort, "-Name" ,"ethernetCopper_1")
-    
-        EthernetCopper[1] = self.stc.create( "EthernetCopper" ,"-under",RxPort, "-Name" ,"ethernetCopper_2")   
-        
+       
         # Switch to the loopback mode to capture transmitted packets.
         #print "Switch to the loopback mode to capture transmitted packets.   "
         #portReturn = self.stc.config( EthernetCopper[0], "-DataPathMode", "LOCAL_LOOPBACK")
@@ -292,7 +271,7 @@ class DpProfile():
                            "AnalyzerConfig_2")
     
         generatorResult = self.stc.subscribe( "-Parent" ,
-                                               ProjectA ,
+                                               stcProject ,
                                                "-ResultParent" ,
                                                TxPort ,
                                                "-ConfigType",
@@ -303,7 +282,7 @@ class DpProfile():
                                                "result")
 
         generatorResult2 = self.stc.subscribe( "-Parent" ,
-                                               ProjectA ,
+                                               stcProject ,
                                                "-ResultParent" ,
                                                RxPort ,
                                                "-ConfigType",
@@ -315,7 +294,7 @@ class DpProfile():
         
          
         analyzerResult = self.stc.subscribe( "-Parent",
-                                              ProjectA,
+                                              stcProject,
                                               "-ResultParent",
                                               RxPort ,
                                               "-ConfigType",
@@ -325,7 +304,7 @@ class DpProfile():
                                               "-filenameprefix",
                                               "result" )
         analyzerResult2 = self.stc.subscribe( "-Parent",
-                                              ProjectA,
+                                              stcProject,
                                               "-ResultParent",
                                               TxPort ,
                                               "-ConfigType",
@@ -335,7 +314,7 @@ class DpProfile():
                                               "-filenameprefix",
                                               "result" )   
 
-    
+        """
         resultReturn = self.stc.connect(chassisAddress)
     
 
@@ -344,7 +323,7 @@ class DpProfile():
     
         resultReturn = self.stc.reserve( "//" + chassisAddress + "/" + slotPort2)
     
-
+        """
     
         captureRx = self.stc.get(RxPort, "-children-capture")
 
@@ -447,20 +426,5 @@ class DpProfile():
         self.totalFrameCount2 = int(self.stc.get(hAnalyzerPortResults2 ,"-totalFrameCount"))
         print "\tTotal:\t %d " % self.totalFrameCount2        
 
-
-
-        self.stc.release( self.stc.get(TxPort, "-location"))
-    
-        self.stc.release( self.stc.get(RxPort, "-location"))
-    
-
-    
-        self.stc.disconnect( chassisAddress)
-    
-        #delete project
-        print "delete project"
-        self.stc.delete( ProjectA)
-    
-        self.stc.perform( "ResetConfig" ,"-config", "system1")
-        
+       
         return self.totalFrameCount

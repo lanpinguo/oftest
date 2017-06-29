@@ -136,6 +136,10 @@ class DataPlanePortPcap:
     def up(self):
         pass
 
+
+def addStcDataplanePort():
+    pass
+
 class DataPlanePortStc:
     """
     Alternate port implementation using Spirent test centetr. 
@@ -217,13 +221,28 @@ class DataPlane(Thread):
             self.dppclass = DataPlanePortPcap
 
         if "tstc" in self.config["platform"]:
-            self.stc = stc_proxy.STC(remoteRpcServerIp = self.config["stcSeriverIp"], port = self.config["stcServierPort"])
-            self.chassisIp = self.config["chassisIp"]
-            self.stc_version = self.stc.get("system1","-Version")  
-            self.logger.info("Spirent test center version-%s" % self.stc_version)  
-            log_filename_stc = time.strftime("remote_%Y_%m_%d_%H_%M_%S.log",time.localtime(time.time()))
-            cResult = self.stc.config("automationoptions -logTo \"" + log_filename_stc + "\" -logLevel DEBUG")  
-            self.logger.info("enable stc log to file . result %s ." % cResult)
+            try: 
+                self.stc = stc_proxy.STC(remoteRpcServerIp = self.config["stcSeriverIp"], port = self.config["stcServierPort"])
+                self.chassisIp = self.config["chassisIp"]
+                self.stc_version = self.stc.get("system1","-Version")  
+                self.logger.info("Spirent test center version-%s" % self.stc_version)  
+                log_filename_stc = time.strftime("remote_%Y_%m_%d_%H_%M_%S.log",time.localtime(time.time()))
+                cResult = self.stc.config("automationoptions -logTo \"" + log_filename_stc + "\" -logLevel DEBUG")  
+                self.logger.info("enable stc log to file . result %s ." % cResult)
+
+                cResult = self.stc.connect(self.chassisIp)
+                self.logger.info("connect to chassis . result %s ." % cResult)
+                
+                self.project = []
+                self.ethPhy = []
+                
+                prj = self.stc.create("project")
+                assert(prj != "")
+                self.project.append(prj)
+                
+            except:
+                self.logger.error("Configure remote rpc server failed, Please check whether remote server is running")
+                raise
             
         self.start()
 
@@ -281,7 +300,28 @@ class DataPlane(Thread):
         Stashes the port number on the created port object.
         """
         if "tstc" in self.config["platform"]:
-            self.ports[port_number] = interface_name
+            
+            try:
+                cResult = self.stc.reserve( "//" + self.chassisIp + "/" + interface_name)
+                self.logger.info( "cResult %s" % cResult)
+
+                stc_port = self.stc.create( "port","-under" , self.project[0])
+                self.logger.info( "stc_port %s" % stc_port)
+                
+                cResult = self.stc.config( stc_port, " -location " , "//" + self.chassisIp + '/' + interface_name)
+                self.logger.info( "cResult %s" % cResult)
+                
+                EthernetCopper = self.stc.create( "EthernetCopper" ,"-under",stc_port, "-Name" ,"ethernetCopper" + str(port_number))
+                self.logger.info( "EthernetCopper %s" % EthernetCopper)
+                self.ethPhy.append(EthernetCopper)
+                
+                
+            except:
+                self.logger.error("add stc port error")
+                raise
+                        
+            self.ports[port_number] = stc_port
+            
         else:
             self.ports[port_number] = self.dppclass(interface_name, port_number)
             self.ports[port_number]._port_number = port_number
@@ -385,6 +425,23 @@ class DataPlane(Thread):
         """
         Stop the dataplane thread.
         """
+        
+        if "tstc" in self.config["platform"]:
+            
+            for p in list(self.ports.keys()):
+                self.logger.info( "release port : %s " % self.ports[p])
+                self.stc.release( self.stc.get(self.ports[p], "-location"))
+            
+            self.stc.disconnect( self.chassisIp)
+            
+            #delete project
+            for prj in self.project:
+                self.logger.info( "delete project : %s " % prj)
+                self.stc.delete( prj)
+            
+            self.stc.perform( "ResetConfig" ,"-config", "system1")
+            
+            
         self.killed = True
         self.waker.notify()
         self.join()

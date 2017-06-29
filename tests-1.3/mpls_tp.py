@@ -5523,12 +5523,16 @@ class SptnLspProtUnderStc(advanced_tests.AdvancedDataPlane):
             elif cmd == 'sync':
                 self.updateDevice()
             elif cmd == 'stc':
-                self.dp.config(txPort = self.dataplane.ports[self.pe1UniPort ], rxPort = self.dataplane.ports[self.pe2UniPort])
+                self.dp.config( stcProject = self.dataplane.project[0],
+                                txPort = self.dataplane.ports[self.pe1UniPort ],
+                                rxPort = self.dataplane.ports[self.pe2UniPort])
                 self.active = False
             elif cmd == 'all':
                 self.addBasicVpws()
                 self.addG8131Mlp()   
-                self.totalCount = self.dp.config(txPort = self.dataplane.ports[self.pe1UniPort], rxPort = self.dataplane.ports[self.pe2UniPort])
+                self.totalCount = self.dp.config( stcProject = self.dataplane.project[0],
+                                                  txPort = self.dataplane.ports[self.pe1UniPort],
+                                                  rxPort = self.dataplane.ports[self.pe2UniPort])
                 print self.totalCount
                 self.assertEquals((self.totalCount >= 10000), True,'packets lost!! Test Fail!!')
                 self.active = False                                               
