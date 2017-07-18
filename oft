@@ -605,7 +605,7 @@ if __name__ == "__main__":
 
     # Shutdown the dataplane
     oftest.dataplane_instance.kill()
-    oftest.dataplane_instance = None
+    oftest.controlplane_instance.kill()
 
     profiler_teardown(profiler)
 

@@ -29,3 +29,4 @@ def platform_config_update(config):
     config["stcSeriverIp"] = "192.168.1.101"
     config["stcServierPort"] = 6000
     config["protocalPort_map"] = protocal_port_map.copy()
+    config["ofconfig_dir"] = "/work/oftest/ofconfig"

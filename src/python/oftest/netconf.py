@@ -42,6 +42,8 @@ import pexpect
 from threading import Thread
 from threading import Lock
 from threading import Condition
+import logging
+from oftest import config
 
 try :
     import xml.etree.cElementTree as ET
@@ -175,17 +177,21 @@ class MEG():
         self.lmepid = lmepid
         self.rmepid = rmepid
         self.type = type 
+        
+        
+        
         if localMpId is None:
             self.localMpId = resPool.getLocalOpenFlowMpId()
         else:
             self.localMpId = localMpId
         try:
-            self.tree = ET.parse("ofconfig/tpoam_template.xml")
+            self.tree = ET.parse(config["ofconfig_dir"] + "/tpoam_template.xml")
             self.root = self.tree.getroot()
         except Exception, e:
-            print("Error:cannot parse file:tpoam_template.xml")
-            sys.exit(1)
-        self.fileName = 'ofconfig/tmp/tpoam' + self.megName + '.xml'    
+            logging.critical("Error:cannot parse file:tpoam_template.xml")
+            raise
+            return
+        self.fileName = config["ofconfig_dir"] + '/tmp/tpoam' + self.megName + '.xml'    
         for res in self.root.findall('{urn:onf:config:yang}resources'):
             g8131_meg = res.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}G.8113.1_MEG')
             resource_id = g8131_meg.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}resource-id') 
@@ -214,7 +220,7 @@ class MEG():
             mepId.text = str(self.rmepid)
         self.tree.write(self.fileName) 
     def delete(self):
-        self.fileName = 'ofconfig/tmp/tpoam_delete_' + self.megName + '.xml'    
+        self.fileName = config["ofconfig_dir"] + '/tmp/tpoam_delete_' + self.megName + '.xml'    
         for res in self.root.findall('{urn:onf:config:yang}resources'):
             g8131_meg = res.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}G.8113.1_MEG')
             g8131_meg.attrib['{urn:ietf:params:xml:ns:netconf:base:1.0}operation'] = 'delete'
@@ -249,6 +255,8 @@ class MEG():
         
     def getFileName(self):
         return self.fileName
+    
+    
 
 class MLP_HEAD_END():
     def __init__(self,mepId,liveness_port,dir = None,role = None):
@@ -256,6 +264,10 @@ class MLP_HEAD_END():
         self.liveness_port = liveness_port
         self.dir = dir
         self.role = role     
+        
+        
+        
+        
 class MLP():
     """
     mlp root class
@@ -266,12 +278,13 @@ class MLP():
         self.mlpHeadEnds = mlpHeadEnds
 
         try:
-            tree = ET.parse("ofconfig/protection_template.xml")
+            tree = ET.parse(config["ofconfig_dir"] + "/protection_template.xml")
             root = tree.getroot()
         except Exception, e:
             print("Error:cannot parse file:protection_template.xml")
             sys.exit(1)
-        self.fileName = 'ofconfig/tmp/tpoam_' + self.mlpName + '.xml'    
+        self.fileName = config["ofconfig_dir"] + '/tmp/tpoam_' + self.mlpName + '.xml'   
+         
         for res in root.findall('{urn:onf:config:yang}resources'):
             MLP_ProtectionGroup = res.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}MLP_ProtectionGroup')
             resource_id = MLP_ProtectionGroup.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}resource-id') 
@@ -298,12 +311,12 @@ class MLP():
     def removeMlpHeadEnd(self,mlpHeadEnd):
 
         try:
-            tree = ET.parse("ofconfig/remove_protection_mep_template.xml")
+            tree = ET.parse(config["ofconfig_dir"] + "/remove_protection_mep_template.xml")
             root = tree.getroot()
         except Exception, e:
             print("Error:cannot parse file:remove_protection_mep_template.xml")
             sys.exit(1)
-        self.fileName = 'ofconfig/tmp/tpoam_remove_mep_' + self.mlpName + '.xml'    
+        self.fileName = config["ofconfig_dir"] + '/tmp/tpoam_remove_mep_' + self.mlpName + '.xml'    
         for res in root.findall('{urn:onf:config:yang}resources'):
             MLP_ProtectionGroup = res.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}MLP_ProtectionGroup')
             resource_id = MLP_ProtectionGroup.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}resource-id') 
@@ -318,12 +331,12 @@ class MLP():
     def replaceMlpHeadEnd(self,mlpHeadEnd):
 
         try:
-            tree = ET.parse("ofconfig/replace_protection_mep_template.xml")
+            tree = ET.parse(config["ofconfig_dir"] + "/replace_protection_mep_template.xml")
             root = tree.getroot()
         except Exception, e:
             print("Error:cannot parse file:replace_protection_mep_template.xml")
             sys.exit(1)
-        self.fileName = 'ofconfig/tmp/tpoam_replace_mep_' + self.mlpName + '.xml'    
+        self.fileName = config["ofconfig_dir"] + '/tmp/tpoam_replace_mep_' + self.mlpName + '.xml'    
         for res in root.findall('{urn:onf:config:yang}resources'):
             MLP_ProtectionGroup = res.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}MLP_ProtectionGroup')
             resource_id = MLP_ProtectionGroup.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}resource-id') 
@@ -342,12 +355,12 @@ class MLP():
     def delete(self):
 
         try:
-            tree = ET.parse("ofconfig/protection_template.xml")
+            tree = ET.parse(config["ofconfig_dir"] + "/protection_template.xml")
             root = tree.getroot()
         except Exception, e:
             print("Error:cannot parse file:protection_template.xml")
             sys.exit(1)
-        self.fileName = 'ofconfig/tmp/mlp_delete_' + self.mlpName + '.xml'    
+        self.fileName = config["ofconfig_dir"] + '/tmp/mlp_delete_' + self.mlpName + '.xml'    
         for res in root.findall('{urn:onf:config:yang}resources'):
             MLP_ProtectionGroup = res.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}MLP_ProtectionGroup')
             MLP_ProtectionGroup.attrib['{urn:ietf:params:xml:ns:netconf:base:1.0}operation'] = 'delete'

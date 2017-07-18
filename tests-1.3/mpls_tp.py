@@ -5566,7 +5566,7 @@ class SptnLspProtUnderStc(advanced_tests.AdvancedDataPlane):
                     self.deviceIsOnline += 1                    
             self.waitDeviceOnline -= 1
             time.sleep(1) # sleep 1s
-        self.assertNotEquals(self.deviceIsOnline, 0,'no enough device is online')
+        self.assertEquals(self.deviceIsOnline, 2,'no enough device is online')
 
 
         self.addBasicVpws()
