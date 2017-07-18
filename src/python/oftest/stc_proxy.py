@@ -115,6 +115,44 @@ class STC(object):
 
 
 
+
+
+    '''
+    API for device operation 
+    '''
+        
+    def dutGetResult(self,timeout = 60000):
+        timer = 0
+        while self.remote.root.dutIsBusy() and (timer < timeout):
+            time.sleep(0.1)
+            timer += 0.1
+            #print ("wait time : %f s" % timer )
+
+        if timer >= timeout:
+            return 'opt_timeout'
+        return self.remote.root.dutGetResult()
+    
+    def dutUpdateSystem(self,dutName,localIp,fileName = None):
+        self.remote.root.dutUpdateSystem(dutName,localIp,fileName)
+        return self.dutGetResult()
+        
+    def dutGetVersion(self,dutName):
+        self.remote.root.dutGetVersion(dutName)
+        return self.dutGetResult()        
+    
+    def dutBoot(self,dutName):
+        self.remote.root.dutBoot(dutName)
+        return self.dutGetResult()  
+
+
+    def dutGetNewestFile(self,dutName):
+        self.remote.root.dutGetNewestFile(dutName)
+        return self.dutGetResult()          
+        
+    def dutGetCurrentMode(self,dutName):
+        self.remote.root.dutGetCurrentMode(dutName)
+        return self.dutGetResult()          
+
         
 
         

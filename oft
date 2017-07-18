@@ -271,6 +271,10 @@ def pcap_setup(config):
     if config["log_dir"] == None:
         filename = os.path.splitext(config["log_file"])[0] + '.pcap'
         oftest.dataplane_instance.start_pcap(filename)
+        
+        filename = os.path.splitext(config["log_file"])[0] + time.strftime("_%Y_%m_%d_%H_%M_%S.pcap",time.localtime(time.time()))
+        oftest.controlplane_instance.start_pcap(filename)
+        
     else:
         # start_pcap is called per-test in base_tests
         pass
@@ -532,10 +536,12 @@ except:
     raise
 
 if not config["port_map"]:
-    if config["platform"] != "tstc-proxy":
-        die("Interface port map was not defined by the platform. Exiting.")
-    else :
+    if config["platform"] == "tstc-proxy":
         logging.warn("Interface port map was not defined by the platform.")
+    elif config["platform"] == "test":
+        logging.warn("Interface port map was not defined by the platform.")
+    else :
+        die("Interface port map was not defined by the platform. Exiting.")
     
 
 logging.debug("Configuration: " + str(config))
@@ -567,16 +573,22 @@ if __name__ == "__main__":
 
     # Set up the dataplane
     oftest.dataplane_instance = oftest.dataplane.DataPlane(config)
+    oftest.controlplane_instance = oftest.dataplane.ControlPlane(config)
     pcap_setup(config)
     for of_port, ifname in config["port_map"].items():
         oftest.dataplane_instance.port_add(ifname, of_port)
 
+    for of_port, ifname in config["protocalPort_map"].items():
+        oftest.controlplane_instance.port_add(ifname, of_port)
+
+        
     logging.info("*** TEST RUN START: " + time.asctime())
     if config["xunit"]:
         try:
             import xmlrunner  # fail-fast if module missing
         except ImportError as ex:
             oftest.dataplane_instance.kill()
+            oftest.controlplane_instance.kill()
             profiler_teardown(profiler)
             raise ex
         runner = xmlrunner.XMLTestRunner(output=config["xunit_dir"],

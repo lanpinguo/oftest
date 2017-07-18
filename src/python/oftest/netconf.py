@@ -58,7 +58,7 @@ class Netconf():
         self.CONFIG_OK = False
         self.AVAILABLE = False
         self.switch_addr = switch_addr
-        self.child = pexpect.spawn('netopeer-cli')
+        self.child = pexpect.spawn('/usr/local/bin/netopeer-cli')
         logfile = 'netconf-'+ str(switch_addr) + '.log'
         self.child.logfile = file(logfile,'w')
         (rc , before , after) = self.wait_cmd(expects = ['netconf>'])
