@@ -1,0 +1,19 @@
+<autotest>
+
+<case>
+        <testList>
+        <testName>dut.BasicUpdate</testName></testList>
+        <failList>
+        </failList>
+        <startTime>Wed Jul 19 16:30:03 2017</startTime>
+        <endTime>Wed Jul 19 16:38:04 2017</endTime> 
+        <status>OK</status>
+    </case><case>
+        <testList>
+        <testName>mpls_tp.SptnLspProtUnderStc</testName></testList>
+        <failList>
+        </failList>
+        <startTime>Wed Jul 19 16:39:26 2017</startTime>
+        <endTime>Wed Jul 19 16:41:51 2017</endTime> 
+        <status>OK</status>
+    </case></autotest>

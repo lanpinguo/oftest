@@ -38,6 +38,8 @@ from oftest import config
 import oftest.ofutils
 import oftest.help_formatter
 import loxi
+from oftest.record import Record
+
 
 ##@var DEBUG_LEVELS
 # Map from strings to debugging levels
@@ -581,8 +583,8 @@ if __name__ == "__main__":
     for of_port, ifname in config["protocalPort_map"].items():
         oftest.controlplane_instance.port_add(ifname, of_port)
 
-        
-    logging.info("*** TEST RUN START: " + time.asctime())
+    testStartTime = time.asctime()    
+    logging.info("*** TEST RUN START: " + testStartTime)
     if config["xunit"]:
         try:
             import xmlrunner  # fail-fast if module missing
@@ -598,10 +600,22 @@ if __name__ == "__main__":
     else:
         result = unittest.TextTestRunner(verbosity=2).run(suite)
     oftest.open_logfile('main')
+    
+    #print('All case number')
+    #print(result.testsRun)
+    #print('Failed case number')
+    #print(len(result.failures))
+    #print('Failed case and reason')
+    #print(result.failures)
+    #for case, reason in result.failures:
+        #print (case.id())
+        #print (reason)
+        
     if oftest.testutils.skipped_test_count > 0:
         message = "Skipped %d test(s)" % oftest.testutils.skipped_test_count
         logging.info(message)
-    logging.info("*** TEST RUN END  : %s", time.asctime())
+    testEndTime = time.asctime()
+    logging.info("*** TEST RUN END  : %s", testEndTime)
 
     # Shutdown the dataplane
     oftest.dataplane_instance.kill()
@@ -609,6 +623,25 @@ if __name__ == "__main__":
 
     profiler_teardown(profiler)
 
+    # Set up the record
+    testRecord = Record()  
+    if result.failures or result.errors:
+        status = 'FAILED'
+    else:
+        status = "OK"
+
+    testNameList = []
+    for (modname, (mod, tests)) in sorted(test_modules.items()):
+        for (testname, test) in sorted(tests.items()):
+            testNameList.append(modname + '.' + testname)
+        
+    testRecord.addEntry(testNameList,testStartTime,testEndTime,status)
+    
+    for case, reason in result.failures:
+        failName = case.id().split('.')
+        testRecord.addFailRecord(failName[0] + '.' + failName[1])
+    testRecord.write()# Save on disk
+    
     if result.failures or result.errors:
         # exit(1) hangs sometimes
         os._exit(1)

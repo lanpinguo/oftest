@@ -1997,7 +1997,9 @@ class DEVICE():
         #print("err:")
         #print(hdr_xid)
         #print(msg.err_type)
-        print("error \t\t %s" % str(msg.err_type) ) 
+        error_info = "device %s  error \t: %s" % (str(self.agt.switch_addr), str(msg.err_type)) 
+        print(error_info) 
+        logging.warn(error_info)
         for m in self.databaseNni2Uni:
             if m.xid == hdr_xid:
                 print m.show()
@@ -5667,79 +5669,79 @@ class SptnLspProtUnderStc(advanced_tests.AdvancedDataPlane):
     def addG8131Mlp(self): 
         if self.pe1 != None and self.pe1Sel == 1:
             (rc,info) = self.pe1.addMlp(mlpIndex = 1,mlpName = 'lsp-aps1',target = 1)
-            print('addG8131Mlp:\t\t'+ str(rc) + '(' + info + ')')
+            print('addG8131Mlp\t\t:'+ str(rc) + '(' + info + ')')
         if self.pe2 != None and self.pe2Sel == 1:
             (rc,info) = self.pe2.addMlp(mlpIndex = 1,mlpName = 'lsp-aps1',target = 1)
-            print('addG8131Mlp:\t\t'+ str(rc) + '(' + info + ')')
+            print('addG8131Mlp\t\t:'+ str(rc) + '(' + info + ')')
 
 
 
     def deleteVpws(self):
         if self.pe1 != None and self.pe1Sel == 1:
             (rc,info) = self.pe1.deleteMlp(mlpIndex = 1)
-            print('deleteMlp:\t\t'+ str(rc) + '(' + info + ')')
+            print('deleteMlp\t\t:'+ str(rc) + '(' + info + ')')
             
             time.sleep(1)
 
             (rc,info)  = self.pe1.removeOamFromLsp(lspIndex = 1)
-            print('removeOamFromLsp:\t\t'+ str(rc) + '(' + info + ')')
+            print('removeOamFromLsp\t\t:'+ str(rc) + '(' + info + ')')
             (rc,info)  = self.pe1.removeOamFromLsp(lspIndex = 2)
-            print('removeOamFromLsp:\t\t'+ str(rc) + '(' + info + ')')
+            print('removeOamFromLsp\t\t:'+ str(rc) + '(' + info + ')')
 
             
             time.sleep(1)
             
             (rc,info) = self.pe1.deletePw(pwIndex = 1)
-            print('deletePw:\t\t'+ str(rc) + '(' + info + ')')
+            print('deletePw\t\t:'+ str(rc) + '(' + info + ')')
 
             time.sleep(1)
 
             (rc,info) = self.pe1.deleteTunnel(tunnelIndex = 1)
-            print('deleteTunnel:\t\t'+ str(rc) + '(' + info + ')')
+            print('deleteTunnel\t\t:'+ str(rc) + '(' + info + ')')
 
             time.sleep(1)
             
             (rc,info) = self.pe1.deleteLsp(lspIndex = 1)
-            print('deleteLsp:\t\t'+ str(rc) + '(' + info + ')')
+            print('deleteLsp\t\t:'+ str(rc) + '(' + info + ')')
             
             time.sleep(1)
             
             (rc,info) = self.pe1.deleteLsp(lspIndex = 2)
-            print('deleteLsp:\t\t'+ str(rc) + '(' + info + ')')
+            print('deleteLsp\t\t:'+ str(rc) + '(' + info + ')')
             
 
         
         if self.pe2 != None and self.pe2Sel == 1:
             (rc,info) = self.pe2.deleteMlp(mlpIndex = 1)
-            print('deleteMlp:\t\t'+ str(rc) + '(' + info + ')')
+            print('deleteMlp\t\t:'+ str(rc) + '(' + info + ')')
             
             time.sleep(1)
 
             (rc,info)  = self.pe2.removeOamFromLsp(lspIndex = 1)
-            print('removeOamFromLsp:\t\t'+ str(rc) + '(' + info + ')')
+            print('removeOamFromLsp\t\t:'+ str(rc) + '(' + info + ')')
             (rc,info)  = self.pe2.removeOamFromLsp(lspIndex = 2)
-            print('removeOamFromLsp:\t\t'+ str(rc) + '(' + info + ')')
+            print('removeOamFromLsp\t\t:'+ str(rc) + '(' + info + ')')
 
             
             time.sleep(1)
             
             (rc,info) = self.pe2.deletePw(pwIndex = 1)
-            print('deletePw:\t\t'+ str(rc) + '(' + info + ')')
+            print('deletePw\t\t:'+ str(rc) + '(' + info + ')')
 
             time.sleep(1)
 
             (rc,info) = self.pe2.deleteTunnel(tunnelIndex = 1)
-            print('deleteTunnel:\t\t'+ str(rc) + '(' + info + ')')
+            print('deleteTunnel\t\t:'+ str(rc) + '(' + info + ')')
 
             time.sleep(1)
             
             (rc,info) = self.pe2.deleteLsp(lspIndex = 1)
-            print('deleteLsp:\t\t'+ str(rc) + '(' + info + ')')
+            print('deleteLsp\t\t:'+ str(rc) + '(' + info + ')')
             
             time.sleep(1)
             
             (rc,info) = self.pe2.deleteLsp(lspIndex = 2)
-            print('deleteLsp:\t\t'+ str(rc) + '(' + info + ')')
+            print('deleteLsp\t\t:'+ str(rc) + '(' + info + ')')
             
    
             
