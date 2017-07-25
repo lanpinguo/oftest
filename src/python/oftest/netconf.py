@@ -219,6 +219,8 @@ class MEG():
             mepId = Remote_MEP.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}mepId')
             mepId.text = str(self.rmepid)
         self.tree.write(self.fileName) 
+        
+        
     def delete(self):
         self.fileName = config["ofconfig_dir"] + '/tmp/tpoam_delete_' + self.megName + '.xml'    
         for res in self.root.findall('{urn:onf:config:yang}resources'):
@@ -281,8 +283,9 @@ class MLP():
             tree = ET.parse(config["ofconfig_dir"] + "/protection_template.xml")
             root = tree.getroot()
         except Exception, e:
-            print("Error:cannot parse file:protection_template.xml")
-            sys.exit(1)
+            logging.critical("Error:cannot parse file:protection_template.xml")
+            raise
+            return
         self.fileName = config["ofconfig_dir"] + '/tmp/tpoam_' + self.mlpName + '.xml'   
          
         for res in root.findall('{urn:onf:config:yang}resources'):
@@ -308,14 +311,17 @@ class MLP():
         tree.write(self.fileName)    
     def getFileName(self):
         return self.fileName
+    
+    
     def removeMlpHeadEnd(self,mlpHeadEnd):
 
         try:
             tree = ET.parse(config["ofconfig_dir"] + "/remove_protection_mep_template.xml")
             root = tree.getroot()
         except Exception, e:
-            print("Error:cannot parse file:remove_protection_mep_template.xml")
-            sys.exit(1)
+            logging.critical("Error:cannot parse file:remove_protection_mep_template.xml")
+            raise
+            return
         self.fileName = config["ofconfig_dir"] + '/tmp/tpoam_remove_mep_' + self.mlpName + '.xml'    
         for res in root.findall('{urn:onf:config:yang}resources'):
             MLP_ProtectionGroup = res.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}MLP_ProtectionGroup')
@@ -328,14 +334,19 @@ class MLP():
             liveness_port.text = str(mlpHeadEnd.liveness_port)
       
         tree.write(self.fileName) 
+        
+        
+        
     def replaceMlpHeadEnd(self,mlpHeadEnd):
 
         try:
             tree = ET.parse(config["ofconfig_dir"] + "/replace_protection_mep_template.xml")
             root = tree.getroot()
         except Exception, e:
-            print("Error:cannot parse file:replace_protection_mep_template.xml")
-            sys.exit(1)
+            logging.critical("Error:cannot parse file:replace_protection_mep_template.xml")
+            raise 
+            return
+        
         self.fileName = config["ofconfig_dir"] + '/tmp/tpoam_replace_mep_' + self.mlpName + '.xml'    
         for res in root.findall('{urn:onf:config:yang}resources'):
             MLP_ProtectionGroup = res.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}MLP_ProtectionGroup')
@@ -358,8 +369,9 @@ class MLP():
             tree = ET.parse(config["ofconfig_dir"] + "/protection_template.xml")
             root = tree.getroot()
         except Exception, e:
-            print("Error:cannot parse file:protection_template.xml")
-            sys.exit(1)
+            logging.critical("Error:cannot parse file:protection_template.xml")
+            raise
+            return
         self.fileName = config["ofconfig_dir"] + '/tmp/mlp_delete_' + self.mlpName + '.xml'    
         for res in root.findall('{urn:onf:config:yang}resources'):
             MLP_ProtectionGroup = res.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}MLP_ProtectionGroup')
