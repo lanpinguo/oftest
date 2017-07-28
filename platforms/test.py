@@ -12,6 +12,11 @@ remote_port_map = {
 #    26 : "eth5"
 }
 
+protocal_port_map = {
+    0 : "eth1",
+}
+
+
 def platform_config_update(config):
     """
     Update configuration for the remote platform
@@ -21,4 +26,5 @@ def platform_config_update(config):
     global remote_port_map
     config["port_map"] = remote_port_map.copy()
     config["caps_table_idx"] = 0
-
+    config["protocalPort_map"] = protocal_port_map.copy()
+    config["ofconfig_dir"] = "/work/oftest/ofconfig"

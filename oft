@@ -98,6 +98,8 @@ CONFIG_DEFAULT = {
 
     # Other configuration
     "port_map"           : {},
+    "topology"           : None,
+    "topologies_dir"     : os.path.join(ROOT_DIR, "topologies"),
 }
 
 def config_setup():
@@ -170,6 +172,7 @@ prefixing them with the '^' character.
     group.add_option("-S", "--switch-ip", dest="switch_ip",
                       help="If set, actively connect to this switch by IP")
     group.add_option("-P", "--platform", help="Platform module name (default %default)")
+    group.add_option("--topology", help="Topology module name (default %default)")
     group.add_option("-a", "--platform-args", help="Custom arguments for the platform")
     group.add_option("--platform-dir", type="string", help="Directory containing platform modules")
     group.add_option("--interface", "-i", type="interface", dest="interfaces", metavar="INTERFACE", action="append",
@@ -537,6 +540,32 @@ except:
     logging.warn("Could not run platform host configuration")
     raise
 
+    
+    
+    
+# Allow topologies to import each other
+
+if config["topology"] is not None:
+    sys.path.append(config["topologies_dir"])
+
+    # Load the topology module
+    topology_name = config["topology"]
+    logging.info("Importing topology: " + topology_name)
+    platform_mod = None
+    try:
+        topology_mod = imp.load_module(topology_name, *imp.find_module(topology_name, [config["topologies_dir"]]))
+    except:
+        logging.warn("Failed to import " + topology_name + " topology module")
+        raise
+
+    try:
+        pass
+        topology_mod.topology_config_update(config)
+    except:
+        logging.warn("Could not run topology host configuration")
+        raise
+    
+    
 if not config["port_map"]:
     if config["platform"] == "tstc-proxy":
         logging.warn("Interface port map was not defined by the platform.")
