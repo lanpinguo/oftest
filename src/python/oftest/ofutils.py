@@ -48,9 +48,13 @@ class EventDescriptor():
         fcntl.fcntl(self.pipe_wr, fcntl.F_SETFL, os.O_NONBLOCK)
 
     def __del__(self):
-        os.close(self.pipe_rd)
-        os.close(self.pipe_wr)
-
+        try:
+            os.close(self.pipe_rd)
+            os.close(self.pipe_wr)
+        except :
+            #logging.warn("Failed to destroy EventDescriptor: %s", e)
+            pass
+            
     def notify(self):
         try:
             os.write(self.pipe_wr, "x")

@@ -6,7 +6,7 @@ test topology for sptn
 
 dev_1 = {
 
-    'DPID'          : 1               ,
+    'DPID'          : 0x1000                           ,
     'UNI_PORT'      : 3                                ,
     'UNI_VLAN'      : 10                               ,
     'LSP_ING_LABEL' : 1000                             ,
@@ -22,7 +22,7 @@ dev_1 = {
 
 dev_2 = {
 
-    "DPID"          : 2                                ,
+    "DPID"          : 0x1001                           ,
     "UNI_PORT"      : 3                                ,
     "UNI_VLAN"      : 10                               ,
     "LSP_ING_LABEL" : 2000                             ,
