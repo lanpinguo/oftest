@@ -4,6 +4,18 @@
 vpws services test cases
 """
 
+import struct
+from scapy import volatile  # noqa: E402
+from scapy import sendrecv  # noqa: E402
+from scapy import config  # noqa: E402
+from scapy.layers import l2  # noqa: E402
+from scapy.layers import inet  # noqa: E402
+from scapy.layers import dhcp  # noqa: E402
+
+# Configuration requires these imports to properly initialize
+from scapy import route  # noqa: E402, F401
+from scapy import route6  # noqa: E402, F401
+
 import logging
 import time
 import oftest
@@ -18,7 +30,7 @@ from oftest.parse import parse_ipv6
 import ofdpa_const as ofdpa
 import oftest.netconf as netconf
 import tstc_dp_profiles as STC_DP
-
+import oftest.LLDP_TLV as LLDP_TLV
 
 
 
@@ -1911,6 +1923,7 @@ class DEVICE():
         self.mlp = []
         self.status = 0
         self.agt.register(msg_type = ofp.OFPT_ERROR, handler = self.error_handler)
+        self.agt.register(msg_type = ofp.OFPT_PACKET_IN, handler = self.packetIn_handler)        
         self.netconf_connected = False
         self.res_pool = RES_POOL()
         
@@ -1919,6 +1932,14 @@ class DEVICE():
         '''
         self.databaseUni2Nni = []
         self.databaseNni2Uni = []
+
+    def packetIn_handler(self,obj,hdr_xid, msg, rawmsg):
+        #print("err:")
+        #print(hdr_xid)
+
+        print msg.show()
+
+
         
     def error_handler(self,obj,hdr_xid, msg, rawmsg):
         #print("err:")
@@ -1945,7 +1966,8 @@ class DEVICE():
     def apply_status(self):
         return self.status
     
-    
+    def sendMessage(self,msg):
+        return self.agt.message_send(msg)
     
     
     def addLsp(self,lspIndex, inLabel, outLabel, nniPort, dstMac, nniVlan = None,Qos = None):
@@ -2759,6 +2781,103 @@ class DeviceOnline(advanced_tests.AdvancedProtocol):
             time.sleep(1) # sleep 1s
         self.assertEquals(self.deviceIsOnline, 2,'no enough device is online')
 
+
+def list2str( data):
+    strList = []
+    for d in data:
+        strList.append('%02X'% d)
+    
+    return ':'.join(strList)
+
+
+def lldp_pkt(src,port,systemName,pktlen = 100):
+    hwAddr = list2str(src)
+    strPort = str(port)
+    
+    #print(hwAddr)
+    #print(strPort)
+    
+    packet = (
+        l2.Ether(dst="01:80:c2:00:00:0e",src=hwAddr,type = 0x88cc) /
+        LLDP_TLV.Chassis_ID(macaddr = hwAddr) /
+        LLDP_TLV.Port_ID(subtype = 0x07,length = len(strPort) + 1,locallyAssigned = strPort) /
+        LLDP_TLV.TTL(seconds = 4919) /
+        LLDP_TLV.SystemName(systemName = systemName,length = len(systemName)) /
+        LLDP_TLV.EndOfPDU()
+    )
+    
+    #packet = packet/("D" * (pktlen - len(packet)))
+    
+    return packet
+
+
+
+class PacketOutLLDP(advanced_tests.AdvancedDataPlane):
+    """
+    Generate lots of packet-out messages
+
+    Test packet-out function by sending lots of packet-out msgs
+    to the switch.  This test tracks the number of packets received in 
+    the dataplane, but does not enforce any requirements about the 
+    number received.
+    """
+    def runTest(self):
+        # Construct packet to send to dataplane
+        # Send packet to dataplane
+        self.pe1 = None
+        self.pe2 = None 
+        
+        self.pe1Config = config["device_map"]["pe1"]
+        self.pe2Config = config["device_map"]["pe2"]
+        print("\r\n")
+        print(hex(self.pe1Config['DPID']))
+        print(hex(self.pe2Config['DPID']))
+        
+        self.deviceIsOnline = 0
+        self.waitDeviceOnline = 3000 # wait timeout = 20s
+        while self.deviceIsOnline < 2 and self.waitDeviceOnline > 0:
+            for agt in self.controller.device_agents:
+                #print(agt.dpid)
+                if self.pe1 == None and agt.dpid == self.pe1Config['DPID']: 
+                    self.pe1 = DEVICE(agt = agt)
+                    self.deviceIsOnline += 1
+                elif self.pe2 == None and agt.dpid == self.pe2Config['DPID']:
+                    self.pe2 = DEVICE(agt = agt) 
+                    self.deviceIsOnline += 1                    
+            self.waitDeviceOnline -= 1
+            print('.')
+            time.sleep(1) # sleep 1s
+        self.assertEquals(self.deviceIsOnline, 2,'no enough device is online')
+        
+
+        # These will get put into function
+        of_ports = self.pe1.agt.port_desc
+
+        
+
+        for dp_port in of_ports:
+          
+            outpkt , opt = (lldp_pkt(src=dp_port.hw_addr,port = dp_port.port_no,systemName = "openflow-lldp"), "lldp packet")
+            
+            logging.info("PKT OUT test with %s, port %s" % (opt, dp_port.port_no))
+            msg = ofp.message.packet_out()
+            msg.in_port = ofp.OFPP_CONTROLLER
+            msg.data = str(outpkt)
+            act = ofp.action.output()
+            act.port = dp_port.port_no
+            msg.actions.append(act)
+            msg.buffer_id = ofp.OFP_NO_BUFFER
+            
+            logging.info("PacketOutLoad to: " + str(dp_port.port_no))
+            
+            self.pe1.sendMessage(msg)
+            
+            
+            exp_pkt_arg = None
+            exp_port = None
+
+
+        time.sleep(5)
 
 
 class DeviceToplogyDiscover(advanced_tests.AdvancedProtocol):
