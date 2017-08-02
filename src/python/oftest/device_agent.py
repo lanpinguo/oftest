@@ -180,7 +180,7 @@ class DeviceAgent(Thread):
             try:
                 ready, sel_out, sel_err = select.select([self.switch_socket], [], [], 1)
             except:
-                print sys.exc_info()
+                #print sys.exc_info()
                 self.logger.error("Select error, disconnecting")
                 self.disconnect()
             if len(ready) != 0:

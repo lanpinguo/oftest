@@ -1,4 +1,5 @@
 eclipse.preferences.version=1
+encoding//src/python/oftest/LLDP_Parser.py=utf-8
 encoding//src/python/oftest/stc_proxy.py=utf-8
 encoding//tests-1.3/tstc_dp_profiles.py=utf-8
 encoding//tests-1.3/vxlan.py=utf-8

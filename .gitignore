@@ -4,3 +4,6 @@ profiles/*.pyc
 *.log
 *.pcap
 ofconfig/tmp
+oft_results.xml
+
+

@@ -3,7 +3,7 @@
 """
 vpws services test cases
 """
-
+import re
 import struct
 from scapy import volatile  # noqa: E402
 from scapy import sendrecv  # noqa: E402
@@ -31,7 +31,7 @@ import ofdpa_const as ofdpa
 import oftest.netconf as netconf
 import tstc_dp_profiles as STC_DP
 import oftest.LLDP_TLV as LLDP_TLV
-
+import oftest.LLDP_Parser as LLDP_Parser
 
 
 def ofdb_group_type_set(g, x):
@@ -1939,7 +1939,32 @@ class DEVICE():
 
         print msg.show()
 
+        oxms = { type(oxm): oxm for oxm in msg.match.oxm_list }
+        oxm = oxms.get(ofp.oxm.in_port)
+        print "packet from %d" % oxm.value
+        
+        payload = msg.data
 
+        eth_protocol, eth_payload = LLDP_Parser.unpack_ethernet_frame(payload)[3:]
+        
+        #print eth_protocol
+        rv = {}
+        if eth_protocol == LLDP_Parser.LLDP_PROTO_ID:
+    
+            for tlv_parse_rv in LLDP_Parser.unpack_lldp_frame(eth_payload):
+        
+                tlv_header, tlv_type, tlv_data_len, tlv_oui, tlv_subtype, tlv_payload = tlv_parse_rv
+        
+                if tlv_type == LLDP_Parser.LLDP_TLV_TYPE_PORTID:
+                    rv['portid'] = re.sub(r'[\x00-\x08]', '', tlv_payload).strip()
+                elif tlv_type == LLDP_Parser.LLDP_TLV_DEVICE_NAME:
+                    rv['switch'] = tlv_payload
+                elif tlv_type == LLDP_Parser.LLDP_TLV_ORGANIZATIONALLY_SPECIFIC:
+                    if tlv_oui == LLDP_Parser.LLDP_TLV_OUI_802_1 and tlv_subtype == 3:
+                        rv['vlan'] = re.sub(r'[\x00-\x08]', '', tlv_payload).strip()
+                #print rv
+
+        
         
     def error_handler(self,obj,hdr_xid, msg, rawmsg):
         #print("err:")
@@ -2782,12 +2807,8 @@ class DeviceOnline(advanced_tests.AdvancedProtocol):
         self.assertEquals(self.deviceIsOnline, 2,'no enough device is online')
 
 
-def list2str( data):
-    strList = []
-    for d in data:
-        strList.append('%02X'% d)
-    
-    return ':'.join(strList)
+def list2str( mac):
+    return ':'.join(["%02x" % x for x in mac])
 
 
 def lldp_pkt(src,port,systemName,pktlen = 100):

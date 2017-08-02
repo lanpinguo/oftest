@@ -273,9 +273,9 @@ class DataPlane(Thread):
         self.start()
 
 
-    def __def__(self):
+    def __del__(self):
         pass
-        Thread.__def__(self)
+        #Thread.__del__(self)
     
     def run(self):
         """
@@ -648,9 +648,9 @@ class ControlPlane(Thread):
         self.start()
 
 
-    def __def__(self):
+    def __del__(self):
         pass
-        Thread.__def__(self)
+        
     
     def run(self):
         """
