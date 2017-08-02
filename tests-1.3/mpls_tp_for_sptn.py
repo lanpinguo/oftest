@@ -71,7 +71,29 @@ def ofdb_group_mpls_subtype_set(g, x):
     """
     return(((g) & ~0x0f000000) | (((x) & 0x0000000f) << 24))
     
+def list2str( mac):
+    return ':'.join(["%02x" % x for x in mac])
+
+
+def lldp_pkt(src,port,systemName,pktlen = 100):
+    hwAddr = list2str(src)
+    strPort = str(port)
     
+    #print(hwAddr)
+    #print(strPort)
+    
+    packet = (
+        l2.Ether(dst="01:80:c2:00:00:0e",src=hwAddr,type = 0x88cc) /
+        LLDP_TLV.Chassis_ID(macaddr = hwAddr) /
+        LLDP_TLV.Port_ID(subtype = 0x07,length = len(strPort) + 1,locallyAssigned = strPort) /
+        LLDP_TLV.TTL(seconds = 4919) /
+        LLDP_TLV.SystemName(systemName = systemName,length = len(systemName)) /
+        LLDP_TLV.EndOfPDU()
+    )
+    
+    #packet = packet/("D" * (pktlen - len(packet)))
+    
+    return packet    
 
 
             
@@ -1926,6 +1948,12 @@ class DEVICE():
         self.agt.register(msg_type = ofp.OFPT_PACKET_IN, handler = self.packetIn_handler)        
         self.netconf_connected = False
         self.res_pool = RES_POOL()
+        self.logger = logging.getLogger("DEVICE")
+        
+        '''
+        store the topology of device connection 
+        '''
+        self.connTopo = {}
         
         '''
         store all messages sent by the device
@@ -1933,21 +1961,55 @@ class DEVICE():
         self.databaseUni2Nni = []
         self.databaseNni2Uni = []
 
+        
+    def probeConnTopo(self):
+                # These will get put into function
+        of_ports = self.agt.port_desc
+ 
+        for dp_port in of_ports:
+          
+            outpkt , opt = (lldp_pkt(src=dp_port.hw_addr,port = dp_port.port_no,systemName = "%016x" % self.agt.dpid), "lldp packet")
+            
+            logging.info("PKT OUT test with %s, port %s" % (opt, dp_port.port_no))
+            msg = ofp.message.packet_out()
+            msg.in_port = ofp.OFPP_CONTROLLER
+            msg.data = str(outpkt)
+            act = ofp.action.output()
+            act.port = dp_port.port_no
+            msg.actions.append(act)
+            msg.buffer_id = ofp.OFP_NO_BUFFER
+            
+            logging.info("PacketOutLoad to: " + str(dp_port.port_no))
+            
+            self.agt.message_send(msg)
+
+
+
+
+    def getDeviceId(self):
+            return self.agt.dpid
+
+    def getDevConnTopo(self):
+            return self.connTopo
+
+    def updateDevConnTopology(self,localPort,remotePort,remoteSysName):
+            self.connTopo[localPort] = '%s@%s' % (remotePort,remoteSysName)
+
     def packetIn_handler(self,obj,hdr_xid, msg, rawmsg):
         #print("err:")
         #print(hdr_xid)
-
-        print msg.show()
-
+        #print msg.show()
+        #print(self.agt.dpid) 
+        
         oxms = { type(oxm): oxm for oxm in msg.match.oxm_list }
         oxm = oxms.get(ofp.oxm.in_port)
-        print "packet from %d" % oxm.value
+        if oxm:
+            localPort = ('%d' % oxm.value)
+        else:
+            return
         
         payload = msg.data
-
         eth_protocol, eth_payload = LLDP_Parser.unpack_ethernet_frame(payload)[3:]
-        
-        #print eth_protocol
         rv = {}
         if eth_protocol == LLDP_Parser.LLDP_PROTO_ID:
     
@@ -1962,9 +2024,11 @@ class DEVICE():
                 elif tlv_type == LLDP_Parser.LLDP_TLV_ORGANIZATIONALLY_SPECIFIC:
                     if tlv_oui == LLDP_Parser.LLDP_TLV_OUI_802_1 and tlv_subtype == 3:
                         rv['vlan'] = re.sub(r'[\x00-\x08]', '', tlv_payload).strip()
-                #print rv
-
-        
+            #print rv
+            self.updateDevConnTopology(localPort,rv['portid'],rv['switch'])
+            logInfo = "Device:%016x receive packet from port %s@%s" % (self.agt.dpid,localPort,rv['switch'])
+            print(logInfo)
+            self.logger.info(logInfo)        
         
     def error_handler(self,obj,hdr_xid, msg, rawmsg):
         #print("err:")
@@ -2807,29 +2871,7 @@ class DeviceOnline(advanced_tests.AdvancedProtocol):
         self.assertEquals(self.deviceIsOnline, 2,'no enough device is online')
 
 
-def list2str( mac):
-    return ':'.join(["%02x" % x for x in mac])
 
-
-def lldp_pkt(src,port,systemName,pktlen = 100):
-    hwAddr = list2str(src)
-    strPort = str(port)
-    
-    #print(hwAddr)
-    #print(strPort)
-    
-    packet = (
-        l2.Ether(dst="01:80:c2:00:00:0e",src=hwAddr,type = 0x88cc) /
-        LLDP_TLV.Chassis_ID(macaddr = hwAddr) /
-        LLDP_TLV.Port_ID(subtype = 0x07,length = len(strPort) + 1,locallyAssigned = strPort) /
-        LLDP_TLV.TTL(seconds = 4919) /
-        LLDP_TLV.SystemName(systemName = systemName,length = len(systemName)) /
-        LLDP_TLV.EndOfPDU()
-    )
-    
-    #packet = packet/("D" * (pktlen - len(packet)))
-    
-    return packet
 
 
 
@@ -2870,35 +2912,21 @@ class PacketOutLLDP(advanced_tests.AdvancedDataPlane):
             time.sleep(1) # sleep 1s
         self.assertEquals(self.deviceIsOnline, 2,'no enough device is online')
         
-
-        # These will get put into function
-        of_ports = self.pe1.agt.port_desc
-
+        self.pe1.probeConnTopo()
+        self.pe2.probeConnTopo()
         
-
-        for dp_port in of_ports:
-          
-            outpkt , opt = (lldp_pkt(src=dp_port.hw_addr,port = dp_port.port_no,systemName = "openflow-lldp"), "lldp packet")
-            
-            logging.info("PKT OUT test with %s, port %s" % (opt, dp_port.port_no))
-            msg = ofp.message.packet_out()
-            msg.in_port = ofp.OFPP_CONTROLLER
-            msg.data = str(outpkt)
-            act = ofp.action.output()
-            act.port = dp_port.port_no
-            msg.actions.append(act)
-            msg.buffer_id = ofp.OFP_NO_BUFFER
-            
-            logging.info("PacketOutLoad to: " + str(dp_port.port_no))
-            
-            self.pe1.sendMessage(msg)
-            
-            
-            exp_pkt_arg = None
-            exp_port = None
-
-
         time.sleep(5)
+        
+        print "PE1 %016x Topology:" % self.pe1.getDeviceId()
+        print self.pe1Config['CONN_TOPO']
+        print self.pe1.getDevConnTopo()
+        
+        print "PE2 %016x Topology:" % self.pe2.getDeviceId()
+        print self.pe2Config['CONN_TOPO']
+        print self.pe2.getDevConnTopo()
+        
+        self.assertEquals(self.pe1Config['CONN_TOPO'], self.pe1.getDevConnTopo(),'Probed topo is wrong')
+        self.assertEquals(self.pe2Config['CONN_TOPO'], self.pe2.getDevConnTopo(),'Probed topo is wrong')
 
 
 class DeviceToplogyDiscover(advanced_tests.AdvancedProtocol):

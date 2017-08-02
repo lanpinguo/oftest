@@ -3,10 +3,14 @@ test topology for sptn
 """
 
 # Update this dictionary to suit your environment.
-
+dev1_connTopology = {
+    '6':'4@0000000000001001'                            ,
+    '2':'2@0000000000001001'                            ,    
+}
 dev_1 = {
 
-    'DPID'          : 0x1000                           ,
+    'DPID'          : 0x0000000000001000               ,
+    'CONN_TOPO'     : dev1_connTopology                 ,
     'UNI_PORT'      : 3                                ,
     'UNI_VLAN'      : 10                               ,
     'LSP_ING_LABEL' : 1000                             ,
@@ -20,9 +24,16 @@ dev_1 = {
 }                                                      
 
 
+
+
+dev2_connTopology = {
+    '4':'6@0000000000001000'                            ,
+    '2':'2@0000000000001000'
+}
 dev_2 = {
 
-    "DPID"          : 0x1001                           ,
+    "DPID"          : 0x0000000000001001               ,
+    'CONN_TOPO'     : dev2_connTopology                 ,
     "UNI_PORT"      : 3                                ,
     "UNI_VLAN"      : 10                               ,
     "LSP_ING_LABEL" : 2000                             ,
