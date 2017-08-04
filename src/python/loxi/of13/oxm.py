@@ -6556,9 +6556,6 @@ class mpls_tp_mpls_type(oxm):
                 q.breakable()
                 q.text("value = ");
                 q.text("%#x" % self.value)
-                q.text(","); q.breakable()
-                q.text("value_mask = ");
-                q.text("%#x" % self.value_mask)
             q.breakable()
         q.text('}')
 
@@ -6607,9 +6604,6 @@ class mpls_tp_qos_index(oxm):
                 q.breakable()
                 q.text("value = ");
                 q.text("%#x" % self.value)
-                q.text(","); q.breakable()
-                q.text("value_mask = ");
-                q.text("%#x" % self.value_mask)
             q.breakable()
         q.text('}')
 

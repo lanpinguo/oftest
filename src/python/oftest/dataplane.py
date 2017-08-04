@@ -304,8 +304,10 @@ class DataPlane(Thread):
                             # Enqueue packet
                             pkt, timestamp = port.recv()
                             port_number = port._port_number
+                            '''
                             self.logger.debug("Pkt len %d in on port %d",
                                               len(pkt), port_number)
+                            '''
                             if self.pcap_writer:
                                 self.pcap_writer.write(pkt, timestamp, port_number)
                             queue = self.packet_queues[port_number]
@@ -675,8 +677,10 @@ class ControlPlane(Thread):
                         # Enqueue packet
                         pkt, timestamp = port.recv()
                         port_number = port._port_number
+                        '''
                         self.logger.debug("Pkt len %d in on port %d",
                                           len(pkt), port_number)
+                        '''
                         if self.pcap_writer:
                             self.pcap_writer.write(pkt, timestamp, port_number)
                         queue = self.packet_queues[port_number]

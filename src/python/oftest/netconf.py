@@ -37,123 +37,122 @@ import random
 import signal
 import fnmatch
 import copy
-import select
-import pexpect 
+#import select
+#import pexpect 
 from threading import Thread
 from threading import Lock
 from threading import Condition
 import logging
-from oftest import config
-
+#from oftest import config
+from ncclient import manager
+from ncclient.xml_ import *
 try :
     import xml.etree.cElementTree as ET
 except ImportError:
     import xml.etree.ElementTree as ET
       
+ 
+NETCONF_NS      = 'urn:ietf:params:xml:ns:netconf:base:1.0'  
+SPTN_SBI_OAM_NS = 'http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam'  
+
+DEFAULT_NS = SPTN_SBI_OAM_NS
+
+qualify = lambda tag, ns=DEFAULT_NS: tag if ns is None else "{%s}%s" % (ns, tag)  
+        
+CONF_CREATE_MEG = """        
+<config xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
+    <capable-switch xmlns="urn:onf:config:yang"  xmlns:a="urn:ietf:params:xml:ns:netconf:base:1.0">
+        <id>openvswitch</id>
+        <resources>
+        <G.8113.1_MEG xmlns="http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam"  a:operation= '%s' >
+            <resource-id>%s</resource-id>
+            <index>%s</index>    
+            <name>%s</name>
+            <managedInstanceType>%s</managedInstanceType>
+            <mipCreation>none</mipCreation>
+            <Local_MEP>
+                <openFlowMpId>%s</openFlowMpId>
+                <serveropenFlowMpId>0</serveropenFlowMpId>
+                <mepId>%s</mepId>
+                <direction>down</direction>
+                <enable>true</enable>
+                <CCM>
+                    <period>3.33MS</period>
+                    <enable>true</enable>
+                    <phb>CS7</phb>
+                </CCM>
+            </Local_MEP>
+            <Remote_MEP>
+                <openFlowMpId>%s</openFlowMpId>
+                <mepId>%s</mepId>
+            </Remote_MEP>
+        </G.8113.1_MEG>
+      </resources>
+    </capable-switch>
+</config>        
+"""
+
+
+CONF_CREATE_MLP = """ 
+<capable-switch xmlns="urn:onf:config:yang"  xmlns:a="urn:ietf:params:xml:ns:netconf:base:1.0">
+  <id>openvswitch</id>
+  <resources>
+      <MLP_ProtectionGroup xmlns="http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam" a:operation="create">
+      <resource-id>protection_group_1</resource-id>
+      <index>1</index> 
+      <architecture>1-to-1</architecture> 
+      <scheme>uni-directional</scheme>    
+      <name>lsp-aps1</name>
+      <revertive>true</revertive>
+      <waitToRestore>1</waitToRestore>
+      <adminStatus>disable</adminStatus>
+      <holdOffTimer>2</holdOffTimer>
+      <layer>lsp</layer>
+      <mlp-head-end-config>
+          <role>working</role>
+          <direction>tx</direction>
+          <liveness-logical-port>4026531840</liveness-logical-port>
+          <mep>10</mep>
+      </mlp-head-end-config>
+      <mlp-head-end-config>
+          <role>protection</role>
+          <direction>tx</direction>
+          <liveness-logical-port>4026531841</liveness-logical-port>
+          <mep>20</mep>
+      </mlp-head-end-config>
+    </MLP_ProtectionGroup>
+  </resources>
+</capable-switch>
+"""
+
+
         
 class Netconf():
     """
     Class abstracting the control netconf interface to the switch.  
     """
     def __init__(self, switch=None, switch_addr='127.0.0.1', port=830):
-        self.CONNECTED = False
-        self.CONFIG_OK = False
-        self.AVAILABLE = False
         self.switch_addr = switch_addr
-        self.child = pexpect.spawn('/usr/local/bin/netopeer-cli')
-        logfile = 'netconf-'+ str(switch_addr) + '.log'
-        self.child.logfile = file(logfile,'w')
-        (rc , before , after) = self.wait_cmd(expects = ['netconf>'])
-        if rc == 0 :
-            self.AVAILABLE = True
-            
-    def wait_cmd(self,expects,timeout = -1):
-        try:
-            index = self.child.expect(expects)
-            #print(index)
-            return (index,self.child.before,self.child.after)
-        except pexpect.EOF :
-            return (-1,"END OF FILE" ,"")
-        except pexpect.TIMEOUT :
-            return(-1,"Timeout","")
-        
+        self.ncPort = port
+
     def connect(self):
-        if self.AVAILABLE:
-            netconf_cmd = "connect --login raisecom " + str(self.switch_addr)
-            self.child.sendline(s = netconf_cmd)
-            (rc , before , after) = self.wait_cmd(expects = ['netconf>','yes/no','failed.','password:','connect:'])
-            time.sleep(0.5)
-            #print(before)
-            #print(after)
-            if rc == 1:
-                self.child.sendline(s = "yes")
-                (rc , before , after) = self.wait_cmd( expects = ['netconf>','password:'])
-                if rc == 1:
-                    self.child.sendline(s = "raisecom")
-                    (rc , before , after) = self.wait_cmd( expects = ['netconf>']) 
-                    if rc == 0:
-                        #print("connect sucessfully")
-                        self.CONNECTED = True
-                        return (0,'connect sucessfully')
-            elif rc == 2:
-                #print("device is unavailable")
-                #print(self.child.before)
-                return (-1,'device unavailable')
-            elif rc == 3:
-                self.child.sendline(s = "raisecom")
-                (rc , before , after) = self.wait_cmd( expects = ['netconf>']) 
-                if rc == 0:
-                    self.CONNECTED = True
-                    #print(self.child.before)
-                    #print("connect sucessfully")
-                    return (0,'connect sucessfully')
-            elif rc == 4:
-                if after.find('already connected'):
-                    self.CONNECTED = True
-                    #print(self.child.before)
-                    #print("connect sucessfully")
-                    return (0,'connect sucessfully')
-            else :
-                #print("connect failed")
-                #print(self.child.before)
-                return (-1,'connect failed')
-        else :
-            return (-1,'device unavailable')
+        self.mng = manager.connect(host=str(self.switch_addr),port=self.ncPort,username="raisecom",password="raisecom",hostkey_verify=False)
+        if self.mng:    
+            return (0,'success')
+        else:
+            return (-1,'failed')
 
-
-
-    def config(self,file):
+    def config(self,config):
         """
         config function for class
         """
+        with self.mng.locked(target="candidate"):
+            self.mng.edit_config(config=config, default_operation="merge", target="candidate")
+            self.mng.commit()
+        
+        return (0,'Result OK')
 
-        if self.CONNECTED == True:
-            netconf_cmd = 'edit-config --config=' + file + ' candidate'
-            self.child.sendline(s = netconf_cmd)
-            (rc , before , after) = self.wait_cmd(expects = ['netconf>'])
-            if rc == 0 :
-                self.CONFIG_OK = False
-                if (self.child.before.find('Result OK')) == -1:
-                    if self.child.before.find('NETCONF error: data-exists') != -1:
-                        return (0,'data-exists')
-                else:
-                    self.CONFIG_OK = True
-                if self.CONFIG_OK :
-                    netconf_cmd = 'commit'
-                    self.child.sendline(s = netconf_cmd)
-                    (rc , before , after) = self.wait_cmd(expects = ['netconf>'])
-                    if rc == 0:
-                        #print(child.before)
-                        #print(child.before.find('Result OK'))
-                        if self.child.before.find('Result OK'):
-                            return (0,'Result OK')
-                        else:
-                            return (-1,'Commit Fail')
-                else:
-                    return (-1,'CONFIG_OK = False')
-        else:
-            #print("connection is not created")
-            return (-1 , "connection is not created")
+
 
 
 class LocalResourcePool():
@@ -184,81 +183,45 @@ class MEG():
             self.localMpId = resPool.getLocalOpenFlowMpId()
         else:
             self.localMpId = localMpId
+            
+        if self.type == 1:
+            managedInstanceType = 'lsp'            
+        elif self.type == 2:
+            managedInstanceType = 'pw'  
+               
         try:
-            self.tree = ET.parse(config["ofconfig_dir"] + "/tpoam_template.xml")
-            self.root = self.tree.getroot()
+            self.strConf = CONF_CREATE_MEG % ("create",
+                                         str('mpls_meg_'+str(self.megIndex)),
+                                         str(self.megIndex),
+                                         self.megName,
+                                         managedInstanceType,
+                                         str(self.localMpId),
+                                         str(self.lmepid),
+                                         str(self.localMpId),
+                                         str(self.rmepid)  )
+            #print strConf
+            self.root = ET.fromstring(self.strConf)
+            #ET.dump(self.root)
+            print ET.iselement(self.root)
+            self.tree = ET.ElementTree(self.root) 
+
         except Exception, e:
-            logging.critical("Error:cannot parse file:tpoam_template.xml")
+            logging.critical("Error:cannot create strConf")
             raise
             return
-        self.fileName = config["ofconfig_dir"] + '/tmp/tpoam' + self.megName + '.xml'    
-        for res in self.root.findall('{urn:onf:config:yang}resources'):
-            g8131_meg = res.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}G.8113.1_MEG')
-            resource_id = g8131_meg.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}resource-id') 
-            resource_id.text = str('mpls_meg_'+str(self.megIndex))
-            index = g8131_meg.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}index')
-            index.text = str(self.megIndex)
-            name = g8131_meg.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}name')
-            name.text = self.megName
-            if self.type == 1:
-                managedInstanceType = g8131_meg.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}managedInstanceType')
-                managedInstanceType.text = 'lsp'            
-            elif self.type == 2:
-                managedInstanceType = g8131_meg.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}managedInstanceType')
-                managedInstanceType.text = 'pw' 
-            Local_MEP = g8131_meg.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}Local_MEP')
-            openFlowMpId = Local_MEP.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}openFlowMpId')
-            openFlowMpId.text = str(self.localMpId)
-            mepId = Local_MEP.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}mepId')
-            mepId.text = str(self.lmepid)
-            
-            
-            Remote_MEP = g8131_meg.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}Remote_MEP')
-            openFlowMpId = Remote_MEP.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}openFlowMpId')
-            openFlowMpId.text = str(self.localMpId)
-            mepId = Remote_MEP.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}mepId')
-            mepId.text = str(self.rmepid)
-        self.tree.write(self.fileName) 
-        
+       
         
     def delete(self):
-        self.fileName = config["ofconfig_dir"] + '/tmp/tpoam_delete_' + self.megName + '.xml'    
-        for res in self.root.findall('{urn:onf:config:yang}resources'):
-            g8131_meg = res.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}G.8113.1_MEG')
-            g8131_meg.attrib['{urn:ietf:params:xml:ns:netconf:base:1.0}operation'] = 'delete'
-            #print(g8131_meg.attrib)
-            resource_id = g8131_meg.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}resource-id') 
-            resource_id.text = str('mpls_meg_'+str(self.megIndex))
-            index = g8131_meg.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}index')
-            index.text = str(self.megIndex)
-            name = g8131_meg.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}name')
-            name.text = self.megName
-            if self.type == 1:
-                managedInstanceType = g8131_meg.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}managedInstanceType')
-                managedInstanceType.text = 'lsp'            
-            elif self.type == 2:
-                managedInstanceType = g8131_meg.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}managedInstanceType')
-                managedInstanceType.text = 'pw'             
-            
-            Local_MEP = g8131_meg.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}Local_MEP')
-            openFlowMpId = Local_MEP.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}openFlowMpId')
-            openFlowMpId.text = str(self.localMpId)
-            mepId = Local_MEP.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}mepId')
-            mepId.text = str(self.lmepid)
-            
-            
-            Remote_MEP = g8131_meg.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}Remote_MEP')
-            openFlowMpId = Remote_MEP.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}openFlowMpId')
-            openFlowMpId.text = str(self.localMpId)
-            mepId = Remote_MEP.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}mepId')
-            mepId.text = str(self.rmepid)
-        self.tree.write(self.fileName)   
+        #self.fileName = config["ofconfig_dir"] + '/tmp/tpoam_delete_' + self.megName + '.xml'    
+
+        #self.tree.write(self.fileName)   
         return self.fileName
         
-    def getFileName(self):
-        return self.fileName
     
+    def getConfig(self):
+        return self.strConf
     
+        
 
 class MLP_HEAD_END():
     def __init__(self,mepId,liveness_port,dir = None,role = None):
@@ -289,26 +252,29 @@ class MLP():
         self.fileName = config["ofconfig_dir"] + '/tmp/tpoam_' + self.mlpName + '.xml'   
          
         for res in root.findall('{urn:onf:config:yang}resources'):
-            MLP_ProtectionGroup = res.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}MLP_ProtectionGroup')
-            resource_id = MLP_ProtectionGroup.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}resource-id') 
+            MLP_ProtectionGroup = res.find(qualify('MLP_ProtectionGroup'))
+            resource_id = MLP_ProtectionGroup.find(qualify('resource-id')) 
             resource_id.text = str('protection_group_'+str(self.mlpIndex))
-            index = MLP_ProtectionGroup.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}index')
+            index = MLP_ProtectionGroup.find(qualify('index'))
             index.text = str(self.mlpIndex)
-            name = MLP_ProtectionGroup.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}name')
+            name = MLP_ProtectionGroup.find(qualify('name'))
             name.text = self.mlpName
             
             
-            mlpHeadEnd = MLP_ProtectionGroup.findall('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}mlp-head-end-config')
-            liveness_port = mlpHeadEnd[0].find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}liveness-logical-port')
+            mlpHeadEnd = MLP_ProtectionGroup.findall(qualify('mlp-head-end-config'))
+            liveness_port = mlpHeadEnd[0].find(qualify('liveness-logical-port'))
             liveness_port.text = str(self.mlpHeadEnds[0].liveness_port)
-            mepId = mlpHeadEnd[0].find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}mep')
+            mepId = mlpHeadEnd[0].find(qualify('mep'))
             mepId.text = str(self.mlpHeadEnds[0].mepId)
 
-            liveness_port = mlpHeadEnd[1].find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}liveness-logical-port')
+            liveness_port = mlpHeadEnd[1].find(qualify('liveness-logical-port'))
             liveness_port.text = str(self.mlpHeadEnds[1].liveness_port)
-            mepId = mlpHeadEnd[1].find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}mep')
+            mepId = mlpHeadEnd[1].find(qualify('mep'))
             mepId.text = str(self.mlpHeadEnds[1].mepId)            
-        tree.write(self.fileName)    
+        tree.write(self.fileName)
+        
+        
+            
     def getFileName(self):
         return self.fileName
     
@@ -324,13 +290,13 @@ class MLP():
             return
         self.fileName = config["ofconfig_dir"] + '/tmp/tpoam_remove_mep_' + self.mlpName + '.xml'    
         for res in root.findall('{urn:onf:config:yang}resources'):
-            MLP_ProtectionGroup = res.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}MLP_ProtectionGroup')
-            resource_id = MLP_ProtectionGroup.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}resource-id') 
+            MLP_ProtectionGroup = res.find(qualify('MLP_ProtectionGroup'))
+            resource_id = MLP_ProtectionGroup.find(qualify('resource-id')) 
             resource_id.text = str('protection_group_'+str(self.mlpIndex))
         
             
-            mlpEnd = MLP_ProtectionGroup.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}mlp-head-end-config')
-            liveness_port = mlpEnd.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}liveness-logical-port')
+            mlpEnd = MLP_ProtectionGroup.find(qualify('mlp-head-end-config'))
+            liveness_port = mlpEnd.find(qualify('liveness-logical-port'))
             liveness_port.text = str(mlpHeadEnd.liveness_port)
       
         tree.write(self.fileName) 
@@ -349,17 +315,17 @@ class MLP():
         
         self.fileName = config["ofconfig_dir"] + '/tmp/tpoam_replace_mep_' + self.mlpName + '.xml'    
         for res in root.findall('{urn:onf:config:yang}resources'):
-            MLP_ProtectionGroup = res.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}MLP_ProtectionGroup')
-            resource_id = MLP_ProtectionGroup.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}resource-id') 
+            MLP_ProtectionGroup = res.find(qualify('MLP_ProtectionGroup'))
+            resource_id = MLP_ProtectionGroup.find(qualify('resource-id')) 
             resource_id.text = str('protection_group_'+str(self.mlpIndex))
         
             
-            mlpEnd = MLP_ProtectionGroup.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}mlp-head-end-config')
-            liveness_port = mlpEnd.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}liveness-logical-port')
+            mlpEnd = MLP_ProtectionGroup.find(qualify('mlp-head-end-config'))
+            liveness_port = mlpEnd.find(qualify('liveness-logical-port'))
             liveness_port.text = str(mlpHeadEnd.liveness_port)
-            mepId = mlpEnd.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}mep')
+            mepId = mlpEnd.find(qualify('mep'))
             mepId.text = str(mlpHeadEnd.mepId) 
-            role = mlpEnd.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}role')
+            role = mlpEnd.find(qualify('role'))
             role.text = mlpHeadEnd.role
         tree.write(self.fileName) 
         
@@ -374,25 +340,25 @@ class MLP():
             return
         self.fileName = config["ofconfig_dir"] + '/tmp/mlp_delete_' + self.mlpName + '.xml'    
         for res in root.findall('{urn:onf:config:yang}resources'):
-            MLP_ProtectionGroup = res.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}MLP_ProtectionGroup')
+            MLP_ProtectionGroup = res.find(qualify('MLP_ProtectionGroup'))
             MLP_ProtectionGroup.attrib['{urn:ietf:params:xml:ns:netconf:base:1.0}operation'] = 'delete'
-            resource_id = MLP_ProtectionGroup.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}resource-id') 
+            resource_id = MLP_ProtectionGroup.find(qualify('resource-id')) 
             resource_id.text = str('protection_group_'+str(self.mlpIndex))
-            index = MLP_ProtectionGroup.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}index')
+            index = MLP_ProtectionGroup.find(qualify('index'))
             index.text = str(self.mlpIndex)
-            name = MLP_ProtectionGroup.find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}name')
+            name = MLP_ProtectionGroup.find(qualify('name'))
             name.text = self.mlpName
             
             
-            mlpHeadEnd = MLP_ProtectionGroup.findall('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}mlp-head-end-config')
-            liveness_port = mlpHeadEnd[0].find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}liveness-logical-port')
+            mlpHeadEnd = MLP_ProtectionGroup.findall(qualify('mlp-head-end-config'))
+            liveness_port = mlpHeadEnd[0].find(qualify('liveness-logical-port'))
             liveness_port.text = str(self.mlpHeadEnds[0].liveness_port)
-            mepId = mlpHeadEnd[0].find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}mep')
+            mepId = mlpHeadEnd[0].find(qualify('mep'))
             mepId.text = str(self.mlpHeadEnds[0].mepId)
 
-            liveness_port = mlpHeadEnd[1].find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}liveness-logical-port')
+            liveness_port = mlpHeadEnd[1].find(qualify('liveness-logical-port'))
             liveness_port.text = str(self.mlpHeadEnds[1].liveness_port)
-            mepId = mlpHeadEnd[1].find('{http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam}mep')
+            mepId = mlpHeadEnd[1].find(qualify('mep'))
             mepId.text = str(self.mlpHeadEnds[1].mepId)            
         tree.write(self.fileName)  
         return self.fileName
@@ -402,20 +368,8 @@ if __name__ == "__main__":
     """
     self test
     """
+    meg = MEG(megIndex = 1, megName = 'test', lmepid = 10, rmepid = 20 , type=1, localMpId=30)
 
-    ends = [MLP_HEAD_END(mepId = 11,liveness_port = 0xF00000008),MLP_HEAD_END(mepId = 12,liveness_port = 0xF00000009)]        
-    mlp = MLP(mlpIndex = 5,mlpName = 'MLP_TEST_1',mlpHeadEnds=ends)
-    print(mlp.getFileName())
-    mlp.delete()
-    print(mlp.getFileName())
-
-    
-    '''   
-    meg = MEG(megIndex = 5,megName = 'meg',lmepid = 20 ,rmepid = 30)
-    print(meg.getFileName())
-    meg.delete()
-    print(meg.getFileName())
-    '''    
     
     
     

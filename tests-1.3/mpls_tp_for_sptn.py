@@ -273,6 +273,14 @@ class LSP():
     lsp flow config data model
     """
     def __init__(self,lspIndex, inLabel, outLabel, nniPort, portMac, dstMac, nniVlan = None,Qos = None):
+        
+        assert(lspIndex != None)
+        assert(inLabel != None)
+        assert(outLabel != None)
+        assert(nniPort != None)
+        assert(portMac != None)
+        assert(dstMac != None)
+                
         self.nni2uni = []
         self.uni2nni = []
         self.Oam_nni2uni = []
@@ -1981,7 +1989,7 @@ class DEVICE():
             
             logging.info("PacketOutLoad to: " + str(dp_port.port_no))
             
-            self.agt.message_send(msg)
+            self.sendMessage(msg)
 
 
 
@@ -2056,6 +2064,7 @@ class DEVICE():
         return self.status
     
     def sendMessage(self,msg):
+        logging.info(msg.show())
         return self.agt.message_send(msg)
     
     
@@ -2065,11 +2074,11 @@ class DEVICE():
             portMac = portMac , dstMac = dstMac, nniVlan = nniVlan | ofdpa.OFDPA_VID_PRESENT,Qos = Qos)
         (uni2nni , nni2uni) = new_lsp.get_flow_db()
         for msg in uni2nni:
-            self.agt.message_send(msg)
+            self.sendMessage(msg)
             self.databaseUni2Nni.append(msg)
             time.sleep(0.01)
         for msg in nni2uni:
-            self.agt.message_send(msg)
+            self.sendMessage(msg)
             self.databaseNni2Uni.append(msg)
             time.sleep(0.01)
         #do_barrier(self.agt)
@@ -2085,11 +2094,11 @@ class DEVICE():
                             res=self.res_pool)
         (uni2nni , nni2uni) = new_tunnel.get_flow_db()
         for msg in uni2nni:
-            self.agt.message_send(msg)
+            self.sendMessage(msg)
             self.databaseUni2Nni.append(msg)
             time.sleep(0.01)
         for msg in nni2uni:
-            self.agt.message_send(msg)
+            self.sendMessage(msg)
             self.databaseNni2Uni.append(msg) 
             time.sleep(0.01)
         #do_barrier(self.agt)
@@ -2104,11 +2113,11 @@ class DEVICE():
                      outLabelPro=outLabelPro,tunnelPro=tunnelPro,res=self.res_pool)
         (uni2nni , nni2uni) = new_pw.get_flow_db()
         for msg in uni2nni:
-            self.agt.message_send(msg)
+            self.sendMessage(msg)
             self.databaseUni2Nni.append(msg)
             time.sleep(0.01)
         for msg in nni2uni:
-            self.agt.message_send(msg)
+            self.sendMessage(msg)
             self.databaseNni2Uni.append(msg) 
             time.sleep(0.01)
         #do_barrier(self.agt)
@@ -2131,11 +2140,11 @@ class DEVICE():
         
         (uni2nni , nni2uni) = new_swap.get_flow_db()
         for msg in uni2nni:
-            self.agt.message_send(msg)
+            self.sendMessage(msg)
             self.databaseUni2Nni.append(msg)
             
         for msg in nni2uni:
-            self.agt.message_send(msg)
+            self.sendMessage(msg)
             self.databaseNni2Uni.append(msg) 
             
         #do_barrier(self.agt)
@@ -2157,14 +2166,14 @@ class DEVICE():
         for msg in uni2nni[::-1]:
             try:
                 dmsg = self.convertFlowMsgC2D(msg)
-                self.agt.message_send(dmsg)
+                self.sendMessage(dmsg)
                 self.databaseUni2Nni.append(dmsg)
             except:
                 print("error msg")
         for msg in nni2uni[::-1]:
             try:
                 dmsg = self.convertFlowMsgC2D(msg)
-                self.agt.message_send(dmsg)
+                self.sendMessage(dmsg)
                 self.databaseNni2Uni.append(dmsg) 
             except:
                 print("error msg")
@@ -2186,14 +2195,14 @@ class DEVICE():
         for msg in uni2nni[::-1]:
             try:
                 dmsg = self.convertFlowMsgC2D(msg)
-                self.agt.message_send(dmsg)
+                self.sendMessage(dmsg)
                 self.databaseUni2Nni.append(dmsg)
             except:
                 print("error msg")
         for msg in nni2uni[::-1]:
             try:
                 dmsg = self.convertFlowMsgC2D(msg)
-                self.agt.message_send(dmsg)
+                self.sendMessage(dmsg)
                 self.databaseNni2Uni.append(dmsg) 
             except:
                 print("error msg")
@@ -2216,14 +2225,14 @@ class DEVICE():
         for msg in uni2nni[::-1]:
             try:
                 dmsg = self.convertFlowMsgC2D(msg)
-                self.agt.message_send(dmsg)
+                self.sendMessage(dmsg)
                 self.databaseUni2Nni.append(dmsg)
             except:
                 print("error msg")
         for msg in nni2uni[::-1]:
             try:
                 dmsg = self.convertFlowMsgC2D(msg)
-                self.agt.message_send(dmsg)
+                self.sendMessage(dmsg)
                 self.databaseNni2Uni.append(dmsg) 
             except:
                 print("error msg")
@@ -2243,11 +2252,18 @@ class DEVICE():
         if meg is None:
           print('Error: meg is none')
           return -1
-        (rc , info) = self.agt.netconf.config(file = meg.getFileName())
+        
+        #raw_input('Press any key to continue ...')
+      
+        (rc , info) = self.agt.netconf.config(meg.getConfig())
         if rc != 0:
             print(info)
             return -1
-        time.sleep(1)    
+        
+        
+        time.sleep(1)  
+        
+          
         targetLsp = None    
         for tmp in self.lsp:
             if tmp.lspIndex == lsp.lspIndex:
@@ -2255,10 +2271,10 @@ class DEVICE():
         if targetLsp:
             (uni2nni , nni2uni) = targetLsp.addOam(meg = meg)
             for msg in uni2nni:
-                self.agt.message_send(msg)
+                self.sendMessage(msg)
                 self.databaseUni2Nni.append(msg)
             for msg in nni2uni:
-                self.agt.message_send(msg)
+                self.sendMessage(msg)
                 self.databaseNni2Uni.append(msg) 
             #do_barrier(self.agt)
             
@@ -2285,10 +2301,10 @@ class DEVICE():
         if target:
             (uni2nni , nni2uni) = target.addOam(meg = meg,type = type)
             for msg in uni2nni:
-                self.agt.message_send(msg)
+                self.sendMessage(msg)
                 self.databaseUni2Nni.append(msg)
             for msg in nni2uni:
-                self.agt.message_send(msg)
+                self.sendMessage(msg)
                 self.databaseNni2Uni.append(msg) 
             #do_barrier(self.agt)
         
@@ -2312,10 +2328,10 @@ class DEVICE():
             
         (uni2nni , nni2uni) = targetTunnel.updateLsp(oldLsp = oldLsp , newLsp = newLsp)
         for msg in uni2nni:
-            self.agt.message_send(msg)
+            self.sendMessage(msg)
             self.databaseUni2Nni.append(msg)
         for msg in nni2uni:
-            self.agt.message_send(msg)
+            self.sendMessage(msg)
             self.databaseNni2Uni.append(msg) 
         #do_barrier(self.agt)
         return (0,'tunnel modif success')
@@ -2558,13 +2574,13 @@ class DEVICE():
             #Reverse traversal
             for msg in uni2nni[::-1]:
                 try:
-                    self.agt.message_send(self.convertFlowMsgC2D(msg))
+                    self.sendMessage(self.convertFlowMsgC2D(msg))
                     self.databaseUni2Nni.append(msg)
                 except:
                     print("error msg")
             for msg in nni2uni[::-1]:
                 try:
-                    self.agt.message_send(self.convertFlowMsgC2D(msg))
+                    self.sendMessage(self.convertFlowMsgC2D(msg))
                 except:
                     print("error msg")
             #do_barrier(self.agt)   
@@ -2603,13 +2619,13 @@ class DEVICE():
             #Reverse traversal
             for msg in uni2nni[::-1]:
                 try:
-                    self.agt.message_send(self.convertFlowMsgC2D(msg))
+                    self.sendMessage(self.convertFlowMsgC2D(msg))
                     self.databaseUni2Nni.append(msg)
                 except:
                     print("error msg")
             for msg in nni2uni[::-1]:
                 try:
-                    self.agt.message_send(self.convertFlowMsgC2D(msg))
+                    self.sendMessage(self.convertFlowMsgC2D(msg))
                 except:
                     print("error msg")
             #do_barrier(self.agt)   
@@ -3216,9 +3232,9 @@ class LspProt(advanced_tests.AdvancedDataPlane):
         nniPort_w = 1
         nniPort_p = 2
 
-        pe2UniPort = 13 
-        pe2NniPort_w = 9
-        pe2NniPort_p = 11
+        pe2UniPort = 3 
+        pe2NniPort_w = 1
+        pe2NniPort_p = 2
         
         nniVlan = 100
         pe1PortMac_w = self.pe1.agt.getPortMac(nniPort_w) 
@@ -3285,111 +3301,80 @@ class LspProt(advanced_tests.AdvancedDataPlane):
     def addG8131Mlp(self): 
         if self.pe1 != None and self.pe1Sel == 1:
             (rc,info) = self.pe1.addMlp(mlpIndex = 1,mlpName = 'lsp-aps1',target = 1)
-            print('addG8131Mlp:'+ str(rc) + '(' + info + ')')
+            print('addG8131Mlp\t\t:'+ str(rc) + '(' + info + ')')
         if self.pe2 != None and self.pe2Sel == 1:
             (rc,info) = self.pe2.addMlp(mlpIndex = 1,mlpName = 'lsp-aps1',target = 1)
-            print('addG8131Mlp:'+ str(rc) + '(' + info + ')')
+            print('addG8131Mlp\t\t:'+ str(rc) + '(' + info + ')')
 
-    def modifyG8131MlpWorker(self): 
-        if self.pe1 != None:
-            (rc,info) = self.pe1.modifyTunnel(tunnelIndex = 1,oldLspIndex = 1,newLspIndex = 3)
-            print('modifyTunnel:'+ str(rc) + '(' + info + ')')
-            (rc,info) = self.pe1.updateMlp(mlpIndex = 1,target = 1)
-            print('updateMlp:'+ str(rc) + '(' + info + ')')
-        
-        if self.pe2 != None:
-            (rc,info) = self.pe2.modifyTunnel(tunnelIndex = 1,oldLspIndex = 1,newLspIndex = 3)
-            print('modifyTunnel:'+ str(rc) + '(' + info + ')')
-            (rc,info) = self.pe2.updateMlp(mlpIndex = 1,target = 1)
-            print('updateMlp:'+ str(rc) + '(' + info + ')')
 
-    def modifyG8131MlpProtector(self): 
-        if self.pe1 != None:
-            (rc,info) = self.pe1.modifyTunnel(tunnelIndex = 1,oldLspIndex = 2,newLspIndex = 3)
-            print('modifyTunnel:'+ str(rc) + '(' + info + ')')
-            (rc,info) = self.pe1.updateMlp(mlpIndex = 1,target = 1)
-            print('updateMlp:'+ str(rc) + '(' + info + ')')
-        
-        if self.pe2 != None:
-            (rc,info) = self.pe2.modifyTunnel(tunnelIndex = 1,oldLspIndex = 2,newLspIndex = 3)
-            print('modifyTunnel:'+ str(rc) + '(' + info + ')')
-            (rc,info) = self.pe2.updateMlp(mlpIndex = 1,target = 1)
-            print('updateMlp:'+ str(rc) + '(' + info + ')')
+
     def deleteVpws(self):
         if self.pe1 != None and self.pe1Sel == 1:
             (rc,info) = self.pe1.deleteMlp(mlpIndex = 1)
-            print('deleteMlp:'+ str(rc) + '(' + info + ')')
+            print('deleteMlp\t\t:'+ str(rc) + '(' + info + ')')
             
             time.sleep(1)
 
             (rc,info)  = self.pe1.removeOamFromLsp(lspIndex = 1)
-            print('removeOamFromLsp:'+ str(rc) + '(' + info + ')')
+            print('removeOamFromLsp\t\t:'+ str(rc) + '(' + info + ')')
             (rc,info)  = self.pe1.removeOamFromLsp(lspIndex = 2)
-            print('removeOamFromLsp:'+ str(rc) + '(' + info + ')')
+            print('removeOamFromLsp\t\t:'+ str(rc) + '(' + info + ')')
 
             
             time.sleep(1)
             
             (rc,info) = self.pe1.deletePw(pwIndex = 1)
-            print('deletePw:'+ str(rc) + '(' + info + ')')
+            print('deletePw\t\t:'+ str(rc) + '(' + info + ')')
 
             time.sleep(1)
 
             (rc,info) = self.pe1.deleteTunnel(tunnelIndex = 1)
-            print('deleteTunnel:'+ str(rc) + '(' + info + ')')
+            print('deleteTunnel\t\t:'+ str(rc) + '(' + info + ')')
 
             time.sleep(1)
             
             (rc,info) = self.pe1.deleteLsp(lspIndex = 1)
-            print('deleteLsp:'+ str(rc) + '(' + info + ')')
+            print('deleteLsp\t\t:'+ str(rc) + '(' + info + ')')
             
             time.sleep(1)
             
             (rc,info) = self.pe1.deleteLsp(lspIndex = 2)
-            print('deleteLsp:'+ str(rc) + '(' + info + ')')
+            print('deleteLsp\t\t:'+ str(rc) + '(' + info + ')')
             
-            time.sleep(1)
-      
-            (rc,info) = self.pe1.deleteLsp(lspIndex = 3)
-            print('deleteLsp:'+ str(rc) + '(' + info + ')')
+
         
         if self.pe2 != None and self.pe2Sel == 1:
             (rc,info) = self.pe2.deleteMlp(mlpIndex = 1)
-            print('deleteMlp:'+ str(rc) + '(' + info + ')')
+            print('deleteMlp\t\t:'+ str(rc) + '(' + info + ')')
             
             time.sleep(1)
 
             (rc,info)  = self.pe2.removeOamFromLsp(lspIndex = 1)
-            print('removeOamFromLsp:'+ str(rc) + '(' + info + ')')
+            print('removeOamFromLsp\t\t:'+ str(rc) + '(' + info + ')')
             (rc,info)  = self.pe2.removeOamFromLsp(lspIndex = 2)
-            print('removeOamFromLsp:'+ str(rc) + '(' + info + ')')
+            print('removeOamFromLsp\t\t:'+ str(rc) + '(' + info + ')')
 
             
             time.sleep(1)
             
             (rc,info) = self.pe2.deletePw(pwIndex = 1)
-            print('deletePw:'+ str(rc) + '(' + info + ')')
+            print('deletePw\t\t:'+ str(rc) + '(' + info + ')')
 
             time.sleep(1)
 
             (rc,info) = self.pe2.deleteTunnel(tunnelIndex = 1)
-            print('deleteTunnel:'+ str(rc) + '(' + info + ')')
+            print('deleteTunnel\t\t:'+ str(rc) + '(' + info + ')')
 
             time.sleep(1)
             
             (rc,info) = self.pe2.deleteLsp(lspIndex = 1)
-            print('deleteLsp:'+ str(rc) + '(' + info + ')')
+            print('deleteLsp\t\t:'+ str(rc) + '(' + info + ')')
             
             time.sleep(1)
             
             (rc,info) = self.pe2.deleteLsp(lspIndex = 2)
-            print('deleteLsp:'+ str(rc) + '(' + info + ')')
+            print('deleteLsp\t\t:'+ str(rc) + '(' + info + ')')
             
-            time.sleep(1)
-      
-            (rc,info) = self.pe2.deleteLsp(lspIndex = 3)
-            print('deleteLsp:'+ str(rc) + '(' + info + ')')        
-   
                         
             
             
