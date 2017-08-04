@@ -94,35 +94,37 @@ CONF_CREATE_MEG = """
 
 
 CONF_CREATE_MLP = """ 
-<capable-switch xmlns="urn:onf:config:yang"  xmlns:a="urn:ietf:params:xml:ns:netconf:base:1.0">
-  <id>openvswitch</id>
-  <resources>
-      <MLP_ProtectionGroup xmlns="http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam" a:operation="create">
-      <resource-id>protection_group_1</resource-id>
-      <index>1</index> 
-      <architecture>1-to-1</architecture> 
-      <scheme>uni-directional</scheme>    
-      <name>lsp-aps1</name>
-      <revertive>true</revertive>
-      <waitToRestore>1</waitToRestore>
-      <adminStatus>disable</adminStatus>
-      <holdOffTimer>2</holdOffTimer>
-      <layer>lsp</layer>
-      <mlp-head-end-config>
-          <role>working</role>
-          <direction>tx</direction>
-          <liveness-logical-port>4026531840</liveness-logical-port>
-          <mep>10</mep>
-      </mlp-head-end-config>
-      <mlp-head-end-config>
-          <role>protection</role>
-          <direction>tx</direction>
-          <liveness-logical-port>4026531841</liveness-logical-port>
-          <mep>20</mep>
-      </mlp-head-end-config>
-    </MLP_ProtectionGroup>
-  </resources>
-</capable-switch>
+<config xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
+    <capable-switch xmlns="urn:onf:config:yang"  xmlns:a="urn:ietf:params:xml:ns:netconf:base:1.0">
+        <id>openvswitch</id>
+        <resources>
+            <MLP_ProtectionGroup xmlns="http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam" a:operation="%s">
+                <resource-id>%s</resource-id>
+                <index>%s</index> 
+                <architecture>1-to-1</architecture> 
+                <scheme>uni-directional</scheme>    
+                <name>%s</name>
+                <revertive>true</revertive>
+                <waitToRestore>1</waitToRestore>
+                <adminStatus>disable</adminStatus>
+                <holdOffTimer>2</holdOffTimer>
+                <layer>%s</layer>
+                <mlp-head-end-config>
+                    <role>working</role>
+                    <direction>tx</direction>
+                    <liveness-logical-port>%s</liveness-logical-port>
+                    <mep>%s</mep>
+                </mlp-head-end-config>
+                    <mlp-head-end-config>
+                    <role>protection</role>
+                    <direction>tx</direction>
+                    <liveness-logical-port>%s</liveness-logical-port>
+                    <mep>%s</mep>
+                </mlp-head-end-config>
+            </MLP_ProtectionGroup>
+        </resources>
+    </capable-switch>
+</config>    
 """
 
 
@@ -154,71 +156,57 @@ class Netconf():
 
 
 
-
-class LocalResourcePool():
-    def __init__(self):
-        self.localOpenFlowMpId = 0
-    def getLocalOpenFlowMpId(self):
-        self.localOpenFlowMpId += 1
-        return self.localOpenFlowMpId
-    
-    
-resPool = LocalResourcePool()    
+  
+ 
 
 class MEG():
     """
     meg root class
     """
     
-    def __init__(self,megIndex,megName,lmepid,rmepid,type=1,localMpId=None):
+    def __init__(self,megIndex,megName,lmepid,rmepid,type=1,localMpId=0):
+        
         self.megIndex = megIndex
         self.megName = megName
         self.lmepid = lmepid
         self.rmepid = rmepid
         self.type = type 
-        
-        
-        
-        if localMpId is None:
-            self.localMpId = resPool.getLocalOpenFlowMpId()
-        else:
-            self.localMpId = localMpId
+      
+        self.localMpId = localMpId
             
         if self.type == 1:
-            managedInstanceType = 'lsp'            
+            self.managedInstanceType = 'lsp'            
         elif self.type == 2:
-            managedInstanceType = 'pw'  
+            self.managedInstanceType = 'pw'  
                
-        try:
-            self.strConf = CONF_CREATE_MEG % ("create",
-                                         str('mpls_meg_'+str(self.megIndex)),
-                                         str(self.megIndex),
-                                         self.megName,
-                                         managedInstanceType,
-                                         str(self.localMpId),
-                                         str(self.lmepid),
-                                         str(self.localMpId),
-                                         str(self.rmepid)  )
-            #print strConf
-            self.root = ET.fromstring(self.strConf)
-            #ET.dump(self.root)
-            print ET.iselement(self.root)
-            self.tree = ET.ElementTree(self.root) 
 
-        except Exception, e:
-            logging.critical("Error:cannot create strConf")
-            raise
-            return
        
         
     def delete(self):
-        #self.fileName = config["ofconfig_dir"] + '/tmp/tpoam_delete_' + self.megName + '.xml'    
-
-        #self.tree.write(self.fileName)   
-        return self.fileName
+        self.strConf = CONF_CREATE_MEG % ("delete",
+                                     str('mpls_meg_'+str(self.megIndex)),
+                                     str(self.megIndex),
+                                     self.megName,
+                                     self.managedInstanceType,
+                                     str(self.localMpId),
+                                     str(self.lmepid),
+                                     str(self.localMpId),
+                                     str(self.rmepid)  ) 
+        return self.strConf
         
+    def updateLocalMpId(self,localMpId):
+        self.localMpId = localMpId    
     
     def getConfig(self):
+        self.strConf = CONF_CREATE_MEG % ("create",
+                                     str('mpls_meg_'+str(self.megIndex)),
+                                     str(self.megIndex),
+                                     self.megName,
+                                     self.managedInstanceType,
+                                     str(self.localMpId),
+                                     str(self.lmepid),
+                                     str(self.localMpId),
+                                     str(self.rmepid)  )
         return self.strConf
     
         

@@ -2255,6 +2255,8 @@ class DEVICE():
         
         #raw_input('Press any key to continue ...')
       
+        meg.updateLocalMpId(self.res_pool.requestLocalOpenFlowMpId())
+      
         (rc , info) = self.agt.netconf.config(meg.getConfig())
         if rc != 0:
             print(info)
