@@ -37,19 +37,13 @@ import random
 import signal
 import fnmatch
 import copy
-#import select
-#import pexpect 
 from threading import Thread
 from threading import Lock
 from threading import Condition
 import logging
-#from oftest import config
 from ncclient import manager
 from ncclient.xml_ import *
-try :
-    import xml.etree.cElementTree as ET
-except ImportError:
-    import xml.etree.ElementTree as ET
+from lxml import etree
       
  
 NETCONF_NS      = 'urn:ietf:params:xml:ns:netconf:base:1.0'  
@@ -59,7 +53,7 @@ DEFAULT_NS = SPTN_SBI_OAM_NS
 
 qualify = lambda tag, ns=DEFAULT_NS: tag if ns is None else "{%s}%s" % (ns, tag)  
         
-CONF_CREATE_MEG = """        
+CONF_MOD_MEG = """        
 <config xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
     <capable-switch xmlns="urn:onf:config:yang"  xmlns:a="urn:ietf:params:xml:ns:netconf:base:1.0">
         <id>openvswitch</id>
@@ -93,7 +87,7 @@ CONF_CREATE_MEG = """
 """
 
 
-CONF_CREATE_MLP = """ 
+CONF_MOD_MLP = """ 
 <config xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
     <capable-switch xmlns="urn:onf:config:yang"  xmlns:a="urn:ietf:params:xml:ns:netconf:base:1.0">
         <id>openvswitch</id>
@@ -127,18 +121,39 @@ CONF_CREATE_MLP = """
 </config>    
 """
 
+CONF_MOD_MLP_HEAD_END = """
+<config xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"> 
+    <capable-switch xmlns="urn:onf:config:yang"  xmlns:a="urn:ietf:params:xml:ns:netconf:base:1.0">
+        <id>openvswitch</id>
+        <resources>
+            <MLP_ProtectionGroup xmlns="http://chinamobile.com.cn/sdn/sptn/sbi/schema/oam" >
+                <resource-id>%s</resource-id>        
+                <mlp-head-end-config a:operation="%s">
+                    <role>%s</role>
+                    <liveness-logical-port>%s</liveness-logical-port>
+                    <mep>%s</mep>                    
+                </mlp-head-end-config>        
+            </MLP_ProtectionGroup>
+        </resources>    
+    </capable-switch>
+</config>       
+"""
 
         
 class Netconf():
     """
     Class abstracting the control netconf interface to the switch.  
     """
-    def __init__(self, switch=None, switch_addr='127.0.0.1', port=830):
+    def __init__(self, username="raisecom",password="raisecom",switch=None, switch_addr='127.0.0.1', port=830):
         self.switch_addr = switch_addr
         self.ncPort = port
-
+        self.username = username
+        self.password = password
+        
+        
+        
     def connect(self):
-        self.mng = manager.connect(host=str(self.switch_addr),port=self.ncPort,username="raisecom",password="raisecom",hostkey_verify=False)
+        self.mng = manager.connect(host=str(self.switch_addr),port=self.ncPort,username=self.username,password=self.password,hostkey_verify=False)
         if self.mng:    
             return (0,'success')
         else:
@@ -155,8 +170,6 @@ class Netconf():
         return (0,'Result OK')
 
 
-
-  
  
 
 class MEG():
@@ -183,7 +196,7 @@ class MEG():
        
         
     def delete(self):
-        self.strConf = CONF_CREATE_MEG % ("delete",
+        self.strConf = CONF_MOD_MEG % ("delete",
                                      str('mpls_meg_'+str(self.megIndex)),
                                      str(self.megIndex),
                                      self.megName,
@@ -198,7 +211,7 @@ class MEG():
         self.localMpId = localMpId    
     
     def getConfig(self):
-        self.strConf = CONF_CREATE_MEG % ("create",
+        self.strConf = CONF_MOD_MEG % ("create",
                                      str('mpls_meg_'+str(self.megIndex)),
                                      str(self.megIndex),
                                      self.megName,
@@ -212,7 +225,7 @@ class MEG():
         
 
 class MLP_HEAD_END():
-    def __init__(self,mepId,liveness_port,dir = None,role = None):
+    def __init__(self,mepId,liveness_port,role,dir = None):
         self.mepId = mepId
         self.liveness_port = liveness_port
         self.dir = dir
@@ -225,141 +238,82 @@ class MLP():
     """
     mlp root class
     """
-    def __init__(self,mlpIndex,mlpName,mlpHeadEnds):
+    def __init__(self,mlpIndex,mlpName,mlpHeadEnds,layer = 'lsp'):
         self.mlpIndex = mlpIndex
         self.mlpName = mlpName
+        self.layer = layer
         self.mlpHeadEnds = mlpHeadEnds
-
-        try:
-            tree = ET.parse(config["ofconfig_dir"] + "/protection_template.xml")
-            root = tree.getroot()
-        except Exception, e:
-            logging.critical("Error:cannot parse file:protection_template.xml")
-            raise
-            return
-        self.fileName = config["ofconfig_dir"] + '/tmp/tpoam_' + self.mlpName + '.xml'   
-         
-        for res in root.findall('{urn:onf:config:yang}resources'):
-            MLP_ProtectionGroup = res.find(qualify('MLP_ProtectionGroup'))
-            resource_id = MLP_ProtectionGroup.find(qualify('resource-id')) 
-            resource_id.text = str('protection_group_'+str(self.mlpIndex))
-            index = MLP_ProtectionGroup.find(qualify('index'))
-            index.text = str(self.mlpIndex)
-            name = MLP_ProtectionGroup.find(qualify('name'))
-            name.text = self.mlpName
-            
-            
-            mlpHeadEnd = MLP_ProtectionGroup.findall(qualify('mlp-head-end-config'))
-            liveness_port = mlpHeadEnd[0].find(qualify('liveness-logical-port'))
-            liveness_port.text = str(self.mlpHeadEnds[0].liveness_port)
-            mepId = mlpHeadEnd[0].find(qualify('mep'))
-            mepId.text = str(self.mlpHeadEnds[0].mepId)
-
-            liveness_port = mlpHeadEnd[1].find(qualify('liveness-logical-port'))
-            liveness_port.text = str(self.mlpHeadEnds[1].liveness_port)
-            mepId = mlpHeadEnd[1].find(qualify('mep'))
-            mepId.text = str(self.mlpHeadEnds[1].mepId)            
-        tree.write(self.fileName)
-        
+        self.strConf = ''
         
             
-    def getFileName(self):
-        return self.fileName
+    def getConfig(self):
+        
+        self.strConf = CONF_MOD_MLP % ('create',
+                                       str('protection_group_'+str(self.mlpIndex)),
+                                       str(self.mlpIndex),
+                                       self.mlpName,
+                                       self.layer,
+                                       str(self.mlpHeadEnds[0].liveness_port),
+                                       str(self.mlpHeadEnds[0].mepId),
+                                       str(self.mlpHeadEnds[1].liveness_port),
+                                       str(self.mlpHeadEnds[1].mepId)                                      
+                                       
+                                       ) 
+        
+        return self.strConf
     
     
     def removeMlpHeadEnd(self,mlpHeadEnd):
-
-        try:
-            tree = ET.parse(config["ofconfig_dir"] + "/remove_protection_mep_template.xml")
-            root = tree.getroot()
-        except Exception, e:
-            logging.critical("Error:cannot parse file:remove_protection_mep_template.xml")
-            raise
-            return
-        self.fileName = config["ofconfig_dir"] + '/tmp/tpoam_remove_mep_' + self.mlpName + '.xml'    
-        for res in root.findall('{urn:onf:config:yang}resources'):
-            MLP_ProtectionGroup = res.find(qualify('MLP_ProtectionGroup'))
-            resource_id = MLP_ProtectionGroup.find(qualify('resource-id')) 
-            resource_id.text = str('protection_group_'+str(self.mlpIndex))
-        
-            
-            mlpEnd = MLP_ProtectionGroup.find(qualify('mlp-head-end-config'))
-            liveness_port = mlpEnd.find(qualify('liveness-logical-port'))
-            liveness_port.text = str(mlpHeadEnd.liveness_port)
-      
-        tree.write(self.fileName) 
-        
+    
+        self.strConf = CONF_MOD_MLP_HEAD_END % (str('protection_group_'+str(self.mlpIndex)),
+                                                'delete',
+                                                mlpHeadEnd.role,
+                                                str(mlpHeadEnd.liveness_port),
+                                                str(mlpHeadEnd.mepId)
+                                                )
+        return self.strConf
         
         
     def replaceMlpHeadEnd(self,mlpHeadEnd):
 
-        try:
-            tree = ET.parse(config["ofconfig_dir"] + "/replace_protection_mep_template.xml")
-            root = tree.getroot()
-        except Exception, e:
-            logging.critical("Error:cannot parse file:replace_protection_mep_template.xml")
-            raise 
-            return
-        
-        self.fileName = config["ofconfig_dir"] + '/tmp/tpoam_replace_mep_' + self.mlpName + '.xml'    
-        for res in root.findall('{urn:onf:config:yang}resources'):
-            MLP_ProtectionGroup = res.find(qualify('MLP_ProtectionGroup'))
-            resource_id = MLP_ProtectionGroup.find(qualify('resource-id')) 
-            resource_id.text = str('protection_group_'+str(self.mlpIndex))
-        
-            
-            mlpEnd = MLP_ProtectionGroup.find(qualify('mlp-head-end-config'))
-            liveness_port = mlpEnd.find(qualify('liveness-logical-port'))
-            liveness_port.text = str(mlpHeadEnd.liveness_port)
-            mepId = mlpEnd.find(qualify('mep'))
-            mepId.text = str(mlpHeadEnd.mepId) 
-            role = mlpEnd.find(qualify('role'))
-            role.text = mlpHeadEnd.role
-        tree.write(self.fileName) 
+        self.strConf = CONF_MOD_MLP_HEAD_END % (str('protection_group_'+str(self.mlpIndex)),
+                                                'replace',
+                                                mlpHeadEnd.role,
+                                                str(mlpHeadEnd.liveness_port),
+                                                str(mlpHeadEnd.mepId)
+                                                )
+        return self.strConf
+    
         
     def delete(self):
 
-        try:
-            tree = ET.parse(config["ofconfig_dir"] + "/protection_template.xml")
-            root = tree.getroot()
-        except Exception, e:
-            logging.critical("Error:cannot parse file:protection_template.xml")
-            raise
-            return
-        self.fileName = config["ofconfig_dir"] + '/tmp/mlp_delete_' + self.mlpName + '.xml'    
-        for res in root.findall('{urn:onf:config:yang}resources'):
-            MLP_ProtectionGroup = res.find(qualify('MLP_ProtectionGroup'))
-            MLP_ProtectionGroup.attrib['{urn:ietf:params:xml:ns:netconf:base:1.0}operation'] = 'delete'
-            resource_id = MLP_ProtectionGroup.find(qualify('resource-id')) 
-            resource_id.text = str('protection_group_'+str(self.mlpIndex))
-            index = MLP_ProtectionGroup.find(qualify('index'))
-            index.text = str(self.mlpIndex)
-            name = MLP_ProtectionGroup.find(qualify('name'))
-            name.text = self.mlpName
-            
-            
-            mlpHeadEnd = MLP_ProtectionGroup.findall(qualify('mlp-head-end-config'))
-            liveness_port = mlpHeadEnd[0].find(qualify('liveness-logical-port'))
-            liveness_port.text = str(self.mlpHeadEnds[0].liveness_port)
-            mepId = mlpHeadEnd[0].find(qualify('mep'))
-            mepId.text = str(self.mlpHeadEnds[0].mepId)
-
-            liveness_port = mlpHeadEnd[1].find(qualify('liveness-logical-port'))
-            liveness_port.text = str(self.mlpHeadEnds[1].liveness_port)
-            mepId = mlpHeadEnd[1].find(qualify('mep'))
-            mepId.text = str(self.mlpHeadEnds[1].mepId)            
-        tree.write(self.fileName)  
-        return self.fileName
+        self.strConf = CONF_MOD_MLP % ('delete',
+                                       str('protection_group_'+str(self.mlpIndex)),
+                                       str(self.mlpIndex),
+                                       self.mlpName,
+                                       self.layer,
+                                       str(self.mlpHeadEnds[0].liveness_port),
+                                       str(self.mlpHeadEnds[0].mepId),
+                                       str(self.mlpHeadEnds[1].liveness_port),
+                                       str(self.mlpHeadEnds[1].mepId)                                      
+                                       
+                                       ) 
+        
+        return self.strConf
 
         
 if __name__ == "__main__":
     """
     self test
     """
-    meg = MEG(megIndex = 1, megName = 'test', lmepid = 10, rmepid = 20 , type=1, localMpId=30)
+    #meg = MEG(megIndex = 1, megName = 'test', lmepid = 10, rmepid = 20 , type=1, localMpId=30)
 
+    mlpHeadEnd_W = MLP_HEAD_END(10,0xF0000000,'working')
+    mlpHeadEnd_P = MLP_HEAD_END(20,0xF0000001,'protection')
+    mlp = MLP(1,'lsp-aps1',[mlpHeadEnd_W,mlpHeadEnd_P])
     
+    #print mlp.getConfig()
     
-    
+    print mlp.delete()
     
     

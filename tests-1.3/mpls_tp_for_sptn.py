@@ -2290,8 +2290,8 @@ class DEVICE():
                 print(info)
                 return -1
             self.netconf_connected = True
-            
-        (rc , info) = self.agt.netconf.config(file = meg.getFileName())
+        meg.updateLocalMpId(self.res_pool.requestLocalOpenFlowMpId())    
+        (rc , info) = self.agt.netconf.config(meg.getConfig())
         if rc != 0:
             print(info)
             return -1
@@ -2370,7 +2370,7 @@ class DEVICE():
             '''
             REMOVE HEAD END
             '''  
-            targetMlp.removeMlpHeadEnd(mlpHeadEnd = targetMlp.mlpHeadEnds[0])
+            mlpConf = targetMlp.removeMlpHeadEnd(mlpHeadEnd = targetMlp.mlpHeadEnds[0])
             
             if self.netconf_connected == False:
                 (rc , info) = self.agt.netconf.connect()
@@ -2379,7 +2379,7 @@ class DEVICE():
                     return (-1 , 'connect not exist')
             self.netconf_connected = True
             
-            (rc , info) = self.agt.netconf.config(file = targetMlp.getFileName())
+            (rc , info) = self.agt.netconf.config(mlpConf)
             if rc != 0:
                 print(info)
                 return (-1 , 'removeMlpHeadEnd failed')
@@ -2387,7 +2387,7 @@ class DEVICE():
             '''
             REPLACE HEAD END
             '''   
-            targetMlp.replaceMlpHeadEnd(mlpHeadEnd = worker)
+            mlpConf = targetMlp.replaceMlpHeadEnd(mlpHeadEnd = worker)
             if self.netconf_connected == False:
                 (rc , info) = self.agt.netconf.connect()
                 if rc != 0:
@@ -2395,7 +2395,7 @@ class DEVICE():
                     return (-1 , 'connect not exist')
             self.netconf_connected = True
             
-            (rc , info) = self.agt.netconf.config(file = targetMlp.getFileName())
+            (rc , info) = self.agt.netconf.config(mlpConf)
             if rc != 0:
                 print(info)
                 return (-1 , 'repalceMlpHeadEnd failed')
@@ -2406,7 +2406,7 @@ class DEVICE():
             '''
             REMOVE HEAD END
             ''' 
-            targetMlp.removeMlpHeadEnd(mlpHeadEnd = targetMlp.mlpHeadEnds[1])
+            mlpConf = targetMlp.removeMlpHeadEnd(mlpHeadEnd = targetMlp.mlpHeadEnds[1])
   
             if self.netconf_connected == False:
                 (rc , info) = self.agt.netconf.connect()
@@ -2415,7 +2415,7 @@ class DEVICE():
                     return (-1 , 'connect not exist')
             self.netconf_connected = True
             
-            (rc , info) = self.agt.netconf.config(file = targetMlp.getFileName())
+            (rc , info) = self.agt.netconf.config(mlpConf)
             if rc != 0:
                 print(info)
                 return (-1 , 'removeMlpHeadEnd failed')
@@ -2423,7 +2423,7 @@ class DEVICE():
             '''
             REPLACE HEAD END
             '''            
-            targetMlp.replaceMlpHeadEnd(mlpHeadEnd = protector)
+            mlpConf = targetMlp.replaceMlpHeadEnd(mlpHeadEnd = protector)
             if self.netconf_connected == False:
                 (rc , info) = self.agt.netconf.connect()
                 if rc != 0:
@@ -2431,7 +2431,7 @@ class DEVICE():
                     return (-1 , 'connect not exist')
             self.netconf_connected = True
             
-            (rc , info) = self.agt.netconf.config(file = targetMlp.getFileName())
+            (rc , info) = self.agt.netconf.config(mlpConf)
             if rc != 0:
                 print(info)
                 return (-1 , 'repalceMlpHeadEnd failed')
@@ -2483,12 +2483,15 @@ class DEVICE():
                 return (-1 , 'connect not exist')
             self.netconf_connected = True
             
-        (rc , info) = self.agt.netconf.config(file = mlpNew.getFileName())
+        (rc , info) = self.agt.netconf.config(mlpNew.getConfig())
         if rc != 0:
             print(info)
             return (-1 , 'config failed')
             
         return (0 , 'add success')
+    
+    
+    
     def deleteMlp(self,mlpIndex):
         '''
         Todo netconf config here
@@ -2507,12 +2510,14 @@ class DEVICE():
                 return (-1 , 'connect not exist')
             self.netconf_connected = True
             
-        (rc , info) = self.agt.netconf.config(file = targetMlp.delete())
+        (rc , info) = self.agt.netconf.config( targetMlp.delete())
         if rc != 0:
             print(info)
             return (-1 , 'config failed')
             
         return (0 , 'delete success')
+    
+    
     def convertFlowMsgC2D(self,msg):
         if isinstance(msg,ofp.message.group_add) or isinstance(msg,ofp.message.group_mod):
             #print('construct group delete msg')
@@ -2562,6 +2567,8 @@ class DEVICE():
             return None
         #print(out)
         return out
+    
+    
     def removeOamFromLsp(self,lspIndex):
         '''
         Todo netconf config here
@@ -2596,7 +2603,7 @@ class DEVICE():
                 return (-1,'no connect')
             self.netconf_connected = True
         
-        (rc , info) = self.agt.netconf.config(file = meg.delete())
+        (rc , info) = self.agt.netconf.config( meg.delete())
         if rc != 0:
             print(info)
             return (-1,'config fail')
@@ -2641,7 +2648,7 @@ class DEVICE():
                 return (-1,'no connect')
             self.netconf_connected = True
         
-        (rc , info) = self.agt.netconf.config(file = meg.delete())
+        (rc , info) = self.agt.netconf.config(meg.delete())
         if rc != 0:
             print(info)
             return (-1,'config fail')
@@ -2893,7 +2900,7 @@ class DeviceOnline(advanced_tests.AdvancedProtocol):
 
 
 
-class PacketOutLLDP(advanced_tests.AdvancedDataPlane):
+class DeviceToplogyDiscover(advanced_tests.AdvancedDataPlane):
     """
     Generate lots of packet-out messages
 
@@ -2947,14 +2954,7 @@ class PacketOutLLDP(advanced_tests.AdvancedDataPlane):
         self.assertEquals(self.pe2Config['CONN_TOPO'], self.pe2.getDevConnTopo(),'Probed topo is wrong')
 
 
-class DeviceToplogyDiscover(advanced_tests.AdvancedProtocol):
-    """
-    vpws test case for lsp  permanent protection 
-    """      
 
-    def runTest(self):
-        pkt = str(simple_tcp_packet())
-        print(pkt.encode('hex'))
 
 
 class Basic(advanced_tests.AdvancedDataPlane):
