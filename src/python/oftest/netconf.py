@@ -150,7 +150,9 @@ class Netconf():
         self.username = username
         self.password = password
         
-        
+    def __del__(self):
+        if self.mng:
+            self.mng.close_session()    
         
     def connect(self):
         self.mng = manager.connect(host=str(self.switch_addr),port=self.ncPort,username=self.username,password=self.password,hostkey_verify=False)
