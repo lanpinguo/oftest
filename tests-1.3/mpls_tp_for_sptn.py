@@ -2000,6 +2000,9 @@ class DEVICE():
     def getDevConnTopo(self):
             return self.connTopo
 
+    def getPortMac(self,portNo):
+        self.agt.getPortMac(portNo)
+
     def updateDevConnTopology(self,localPort,remotePort,remoteSysName):
             self.connTopo[localPort] = '%s@%s' % (remotePort,remoteSysName)
 
