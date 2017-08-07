@@ -46,20 +46,22 @@ class EventDescriptor():
     def __init__(self):
         self.pipe_rd, self.pipe_wr = os.pipe()
         fcntl.fcntl(self.pipe_wr, fcntl.F_SETFL, os.O_NONBLOCK)
-
+        self.logger = logging.getLogger("EventDescriptor")
+        
+        
     def __del__(self):
         try:
             os.close(self.pipe_rd)
             os.close(self.pipe_wr)
-        except :
-            #logging.warn("Failed to destroy EventDescriptor: %s", e)
+        except OSError as e:
+            self.logger.warn("Failed to destroy EventDescriptor: %s", e)
             pass
             
     def notify(self):
         try:
             os.write(self.pipe_wr, "x")
         except OSError as e:
-            logging.warn("Failed to notify EventDescriptor: %s", e)
+            self.logger.warn("Failed to notify EventDescriptor: %s", e)
 
     def wait(self):
         os.read(self.pipe_rd, 1)

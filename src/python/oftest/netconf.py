@@ -150,7 +150,7 @@ class Netconf():
         self.username = username
         self.password = password
         
-    def __del__(self):
+    def closeConn(self):
         if self.mng:
             self.mng.close_session()    
         

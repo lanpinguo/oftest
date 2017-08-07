@@ -474,6 +474,8 @@ class DataPlane(Thread):
         self.killed = True
         self.waker.notify()
         self.join()
+        
+        del self.waker        
         # Explicitly release ports to ensure we don't run out of sockets
         # even if someone keeps holding a reference to the dataplane.
         del self.ports
@@ -687,7 +689,7 @@ class ControlPlane(Thread):
                         if len(queue) >= self.MAX_QUEUE_LEN:
                             # Queue full, throw away oldest
                             queue.pop(0)
-                            self.logger.debug("Discarding oldest packet to make room")
+                            #self.logger.debug("Discarding oldest packet to make room")
                         queue.append((pkt, timestamp))
                 self.cvar.notify_all()
 
@@ -807,6 +809,8 @@ class ControlPlane(Thread):
         self.killed = True
         self.waker.notify()
         self.join()
+        
+        del self.waker
         # Explicitly release ports to ensure we don't run out of sockets
         # even if someone keeps holding a reference to the dataplane.
         del self.ports

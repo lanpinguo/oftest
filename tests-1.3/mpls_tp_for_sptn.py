@@ -3262,8 +3262,7 @@ class LspProt(advanced_tests.AdvancedDataPlane):
             
             pw = self.pe1.addPw(pwIndex = 1,inLabel = 2000 ,outLabel = 2500,uniPort = uniPort, uniVlan = uniVlan, tunnel = tunnel)
             
-            uniVlan = [11]
-            pw2 = self.pe1.addPw(pwIndex = 2,inLabel = 2001 ,outLabel = 2501,uniPort = uniPort, uniVlan = uniVlan, tunnel = tunnel)          
+        
             meg_w = netconf.MEG(megIndex = 1,megName ='lspmeg-w' , lmepid = 10 ,rmepid = 20 )
             self.pe1.addOam2Lsp(lsp = lsp_w, meg = meg_w)
      
