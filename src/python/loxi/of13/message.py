@@ -9347,11 +9347,11 @@ class sptn_header(experimenter):
     @staticmethod
     def unpack(reader):
         subtype, = reader.peek('!L', 12)
-        subclass = bsn_header.subtypes.get(subtype)
+        subclass = sptn_header.subtypes.get(subtype)
         if subclass:
             return subclass.unpack(reader)
 
-        obj = bsn_header()
+        obj = sptn_header()
         _version = reader.read("!B")[0]
         assert(_version == 4)
         _type = reader.read("!B")[0]
@@ -9457,7 +9457,7 @@ class sptn_mpls_vpn_label_remark_action_mod(sptn_header):
 
     @staticmethod
     def unpack(reader):
-        obj = bsn_vlan_counter_clear()
+        obj = sptn_mpls_vpn_label_remark_action_mod()
         _version = reader.read("!B")[0]
         assert(_version == 4)
         _type = reader.read("!B")[0]
@@ -9589,7 +9589,7 @@ class sptn_mpls_vpn_label_remark_action_add(sptn_mpls_vpn_label_remark_action_mo
 
     @staticmethod
     def unpack(reader):
-        obj = bsn_vlan_counter_clear()
+        obj = sptn_mpls_vpn_label_remark_action_add()
         _version = reader.read("!B")[0]
         assert(_version == 4)
         _type = reader.read("!B")[0]
@@ -9721,7 +9721,7 @@ class sptn_mpls_vpn_label_remark_action_modify(sptn_mpls_vpn_label_remark_action
 
     @staticmethod
     def unpack(reader):
-        obj = bsn_vlan_counter_clear()
+        obj = sptn_mpls_vpn_label_remark_action_modify()
         _version = reader.read("!B")[0]
         assert(_version == 4)
         _type = reader.read("!B")[0]
@@ -9854,7 +9854,7 @@ class sptn_mpls_vpn_label_remark_action_delete(sptn_mpls_vpn_label_remark_action
 
     @staticmethod
     def unpack(reader):
-        obj = bsn_vlan_counter_clear()
+        obj = sptn_mpls_vpn_label_remark_action_delete()
         _version = reader.read("!B")[0]
         assert(_version == 4)
         _type = reader.read("!B")[0]
@@ -9996,7 +9996,7 @@ class sptn_mpls_tunnel_label_remark_action_mod(sptn_header):
 
     @staticmethod
     def unpack(reader):
-        obj = bsn_vlan_counter_clear()
+        obj = sptn_mpls_tunnel_label_remark_action_mod()
         _version = reader.read("!B")[0]
         assert(_version == 4)
         _type = reader.read("!B")[0]
@@ -10128,7 +10128,7 @@ class sptn_mpls_tunnel_label_remark_action_add(sptn_mpls_tunnel_label_remark_act
 
     @staticmethod
     def unpack(reader):
-        obj = bsn_vlan_counter_clear()
+        obj = sptn_mpls_tunnel_label_remark_action_add()
         _version = reader.read("!B")[0]
         assert(_version == 4)
         _type = reader.read("!B")[0]
@@ -10260,7 +10260,7 @@ class sptn_mpls_tunnel_label_remark_action_modify(sptn_mpls_tunnel_label_remark_
 
     @staticmethod
     def unpack(reader):
-        obj = bsn_vlan_counter_clear()
+        obj = sptn_mpls_tunnel_label_remark_action_modify()
         _version = reader.read("!B")[0]
         assert(_version == 4)
         _type = reader.read("!B")[0]
@@ -10393,7 +10393,7 @@ class sptn_mpls_tunnel_label_remark_action_delete(sptn_mpls_vpn_label_remark_act
 
     @staticmethod
     def unpack(reader):
-        obj = bsn_vlan_counter_clear()
+        obj = sptn_mpls_tunnel_label_remark_action_delete()
         _version = reader.read("!B")[0]
         assert(_version == 4)
         _type = reader.read("!B")[0]
@@ -10463,6 +10463,860 @@ class sptn_mpls_tunnel_label_remark_action_delete(sptn_mpls_vpn_label_remark_act
 
 sptn_mpls_tunnel_label_remark_action_mod.subtypes[2] = sptn_mpls_tunnel_label_remark_action_delete
 
+class sptn_color_based_ctr_mod(sptn_header):
+    subtypes = {}
+    version = 4
+    type = 4
+    experimenter = 4120
+    exptype = 14
+
+
+    def __init__(self, xid=None, _command=None,block_index=None,transmit_packets=None,receive_packets=None,color=None):
+        if xid != None:
+            self.xid = xid
+        else:
+            self.xid = None
+            
+        if _command != None:
+            self._command = _command
+        else:
+            self._command = 0
+            
+        if block_index != None:
+            self.block_index = block_index
+        else:
+            self.block_index = 0            
+        
+        if transmit_packets != None:
+            self.transmit_packets = transmit_packets
+        else:
+            self.transmit_packets = 0
+            
+        if receive_packets != None:
+            self.receive_packets = receive_packets
+        else:
+            self.receive_packets = 0
+            
+        if color != None:
+            self.color = color
+        else:
+            self.color = 0
+        
+        self.pad = 0
+        return
+    def pack(self):
+        packed = []
+        packed.append(struct.pack("!B", self.version))
+        packed.append(struct.pack("!B", self.type))
+        packed.append(struct.pack("!H", 0)) # placeholder for length at index 2
+        packed.append(struct.pack("!L", self.xid))
+        packed.append(struct.pack("!L", self.experimenter))
+        packed.append(struct.pack("!L", self.exptype))
+        packed.append(struct.pack("!L", self._command))
+        packed.append(struct.pack("!L", self.block_index))
+        packed.append(struct.pack("!Q", self.transmit_packets))
+        packed.append(struct.pack("!Q", self.receive_packets))
+        packed.append(struct.pack("!B", self.color))
+        packed.append(struct.pack("!L", self.pad))
+        packed.append(struct.pack("!B", self.pad))                                               
+        packed.append(struct.pack("!B", self.pad))
+        packed.append(struct.pack("!B", self.pad))  
+        length = sum([len(x) for x in packed])
+        packed[2] = struct.pack("!H", length)
+        return ''.join(packed)
+
+    @staticmethod
+    def unpack(reader):
+        obj = sptn_color_based_ctr_mod()
+        _version = reader.read("!B")[0]
+        assert(_version == 4)
+        _type = reader.read("!B")[0]
+        assert(_type == 4)
+        _length = reader.read("!H")[0]
+        orig_reader = reader
+        reader = orig_reader.slice(_length, 4)
+        obj.xid = reader.read("!L")[0]
+        _experimenter = reader.read("!L")[0]
+        assert(_experimenter == 4120)
+        _exptype = reader.read("!L")[0]
+        assert(_exptype == 6)
+        obj.command = reader.read("!L")[0]
+        obj.block_index = reader.read("!L")[0]
+        obj.transmit_packets = reader.read("!Q")[0]
+        obj.receive_packets = reader.read("!Q")[0]
+        obj.color = reader.read("!B")[0]
+        _pad = reader.read("!L")[0]
+        _pad = reader.read("!B")[0]                                
+        _pad = reader.read("!B")[0] 
+        _pad = reader.read("!B")[0] 
+        return obj
+
+    def __eq__(self, other):
+        if type(self) != type(other): return False
+        if self.xid != other.xid: return False
+        if self._command != other._command: return False
+        if self.block_index != other.block_index: return False
+        if self.transmit_packets != other.transmit_packets: return False
+        if self.receive_packets != other.receive_packets: return False
+        if self.color != other.color: return False
+
+        return True
+
+    def pretty_print(self, q):
+        q.text("sptn_color_based_ctr_mod {")
+        with q.group():
+            with q.indent(2):
+                q.breakable()
+                q.text("xid = ");
+                if self.xid != None:
+                    q.text("%#x" % self.xid)
+                else:
+                    q.text('None')
+                q.text(","); q.breakable()
+                q.text("block_index = ");
+                q.text("%#x" % self.block_index)
+                q.text(","); q.breakable()
+                q.text("transmit_packets = ");
+                q.text("%#x" % self.transmit_packets)
+                q.text(","); q.breakable()
+                q.text("receive_packets = ");
+                q.text("%#x" % self.receive_packets)
+                q.text(","); q.breakable()
+                q.text("color = ");
+                q.text("%#x" % self.color)
+                                                             
+            q.breakable()
+        q.text('}')
+
+sptn_header.subtypes[14] = sptn_color_based_ctr_mod
+
+class sptn_color_based_ctr_add(sptn_color_based_ctr_mod):
+
+    _command = 0
+
+    def __init__(self, xid=None, block_index=None,transmit_packets=None,receive_packets=None,color=None):
+        if xid != None:
+            self.xid = xid
+        else:
+            self.xid = None
+           
+        if block_index != None:
+            self.block_index = block_index
+        else:
+            self.block_index = 0            
+        
+        if transmit_packets != None:
+            self.transmit_packets = transmit_packets
+        else:
+            self.transmit_packets = 0
+            
+        if receive_packets != None:
+            self.receive_packets = receive_packets
+        else:
+            self.receive_packets = 0
+            
+        if color != None:
+            self.color = color
+        else:
+            self.color = 0
+        
+        self.pad = 0
+        return
+    def pack(self):
+        packed = []
+        packed.append(struct.pack("!B", self.version))
+        packed.append(struct.pack("!B", self.type))
+        packed.append(struct.pack("!H", 0)) # placeholder for length at index 2
+        packed.append(struct.pack("!L", self.xid))
+        packed.append(struct.pack("!L", self.experimenter))
+        packed.append(struct.pack("!L", self.exptype))
+        packed.append(struct.pack("!L", self._command))
+        packed.append(struct.pack("!L", self.block_index))
+        packed.append(struct.pack("!Q", self.transmit_packets))
+        packed.append(struct.pack("!Q", self.receive_packets))
+        packed.append(struct.pack("!B", self.color))
+        packed.append(struct.pack("!L", self.pad))
+        packed.append(struct.pack("!B", self.pad))                                               
+        packed.append(struct.pack("!B", self.pad))
+        packed.append(struct.pack("!B", self.pad))  
+        length = sum([len(x) for x in packed])
+        packed[2] = struct.pack("!H", length)
+        return ''.join(packed)
+
+    @staticmethod
+    def unpack(reader):
+        obj = sptn_color_based_ctr_add()
+        _version = reader.read("!B")[0]
+        assert(_version == 4)
+        _type = reader.read("!B")[0]
+        assert(_type == 4)
+        _length = reader.read("!H")[0]
+        orig_reader = reader
+        reader = orig_reader.slice(_length, 4)
+        obj.xid = reader.read("!L")[0]
+        _experimenter = reader.read("!L")[0]
+        assert(_experimenter == 4120)
+        _exptype = reader.read("!L")[0]
+        assert(_exptype == 6)
+        obj.command = reader.read("!L")[0]
+        obj.block_index = reader.read("!L")[0]
+        obj.transmit_packets = reader.read("!Q")[0]
+        obj.receive_packets = reader.read("!Q")[0]
+        obj.color = reader.read("!B")[0]
+        _pad = reader.read("!L")[0]
+        _pad = reader.read("!B")[0]                                
+        _pad = reader.read("!B")[0] 
+        _pad = reader.read("!B")[0] 
+        return obj
+
+    def __eq__(self, other):
+        if type(self) != type(other): return False
+        if self.xid != other.xid: return False
+        if self._command != other._command: return False
+        if self.block_index != other.block_index: return False
+        if self.transmit_packets != other.transmit_packets: return False
+        if self.receive_packets != other.receive_packets: return False
+        if self.color != other.color: return False
+
+        return True
+
+    def pretty_print(self, q):
+        q.text("sptn_color_based_ctr_add {")
+        with q.group():
+            with q.indent(2):
+                q.breakable()
+                q.text("xid = ");
+                if self.xid != None:
+                    q.text("%#x" % self.xid)
+                else:
+                    q.text('None')
+                q.text(","); q.breakable()
+                q.text("block_index = ");
+                q.text("%#x" % self.block_index)
+                q.text(","); q.breakable()
+                q.text("transmit_packets = ");
+                q.text("%#x" % self.transmit_packets)
+                q.text(","); q.breakable()
+                q.text("receive_packets = ");
+                q.text("%#x" % self.receive_packets)
+                q.text(","); q.breakable()
+                q.text("color = ");
+                q.text("%#x" % self.color)
+                                                             
+            q.breakable()
+        q.text('}')
+
+sptn_color_based_ctr_mod.subtypes[0] = sptn_color_based_ctr_add
+
+class sptn_color_based_ctr_modify(sptn_color_based_ctr_mod):
+
+    _command = 1
+
+    def __init__(self, xid=None, block_index=None,transmit_packets=None,receive_packets=None,color=None):
+        if xid != None:
+            self.xid = xid
+        else:
+            self.xid = None
+            
+        if block_index != None:
+            self.block_index = block_index
+        else:
+            self.block_index = 0            
+        
+        if transmit_packets != None:
+            self.transmit_packets = transmit_packets
+        else:
+            self.transmit_packets = 0
+            
+        if receive_packets != None:
+            self.receive_packets = receive_packets
+        else:
+            self.receive_packets = 0
+            
+        if color != None:
+            self.color = color
+        else:
+            self.color = 0
+        
+        self.pad = 0
+        return
+    def pack(self):
+        packed = []
+        packed.append(struct.pack("!B", self.version))
+        packed.append(struct.pack("!B", self.type))
+        packed.append(struct.pack("!H", 0)) # placeholder for length at index 2
+        packed.append(struct.pack("!L", self.xid))
+        packed.append(struct.pack("!L", self.experimenter))
+        packed.append(struct.pack("!L", self.exptype))
+        packed.append(struct.pack("!L", self._command))
+        packed.append(struct.pack("!L", self.block_index))
+        packed.append(struct.pack("!Q", self.transmit_packets))
+        packed.append(struct.pack("!Q", self.receive_packets))
+        packed.append(struct.pack("!B", self.color))
+        packed.append(struct.pack("!L", self.pad))
+        packed.append(struct.pack("!B", self.pad))                                               
+        packed.append(struct.pack("!B", self.pad))
+        packed.append(struct.pack("!B", self.pad))  
+        length = sum([len(x) for x in packed])
+        packed[2] = struct.pack("!H", length)
+        return ''.join(packed)
+
+    @staticmethod
+    def unpack(reader):
+        obj = sptn_color_based_ctr_modify()
+        _version = reader.read("!B")[0]
+        assert(_version == 4)
+        _type = reader.read("!B")[0]
+        assert(_type == 4)
+        _length = reader.read("!H")[0]
+        orig_reader = reader
+        reader = orig_reader.slice(_length, 4)
+        obj.xid = reader.read("!L")[0]
+        _experimenter = reader.read("!L")[0]
+        assert(_experimenter == 4120)
+        _exptype = reader.read("!L")[0]
+        assert(_exptype == 6)
+        obj.command = reader.read("!L")[0]
+        obj.block_index = reader.read("!L")[0]
+        obj.transmit_packets = reader.read("!Q")[0]
+        obj.receive_packets = reader.read("!Q")[0]
+        obj.color = reader.read("!B")[0]
+        _pad = reader.read("!L")[0]
+        _pad = reader.read("!B")[0]                                
+        _pad = reader.read("!B")[0] 
+        _pad = reader.read("!B")[0] 
+        return obj
+
+    def __eq__(self, other):
+        if type(self) != type(other): return False
+        if self.xid != other.xid: return False
+        if self._command != other._command: return False
+        if self.block_index != other.block_index: return False
+        if self.transmit_packets != other.transmit_packets: return False
+        if self.receive_packets != other.receive_packets: return False
+        if self.color != other.color: return False
+
+        return True
+
+    def pretty_print(self, q):
+        q.text("sptn_color_based_ctr_modify {")
+        with q.group():
+            with q.indent(2):
+                q.breakable()
+                q.text("xid = ");
+                if self.xid != None:
+                    q.text("%#x" % self.xid)
+                else:
+                    q.text('None')
+                q.text(","); q.breakable()
+                q.text("block_index = ");
+                q.text("%#x" % self.block_index)
+                q.text(","); q.breakable()
+                q.text("transmit_packets = ");
+                q.text("%#x" % self.transmit_packets)
+                q.text(","); q.breakable()
+                q.text("receive_packets = ");
+                q.text("%#x" % self.receive_packets)
+                q.text(","); q.breakable()
+                q.text("color = ");
+                q.text("%#x" % self.color)
+                                                             
+            q.breakable()
+        q.text('}')
+
+sptn_color_based_ctr_mod.subtypes[1] = sptn_color_based_ctr_modify
+
+
+class sptn_color_based_ctr_delete(sptn_color_based_ctr_mod):
+
+    _command = 2
+
+    def __init__(self, xid=None, block_index=None,transmit_packets=None,receive_packets=None,color=None):
+        if xid != None:
+            self.xid = xid
+        else:
+            self.xid = None
+        
+        if block_index != None:
+            self.block_index = block_index
+        else:
+            self.block_index = 0            
+        
+        if transmit_packets != None:
+            self.transmit_packets = transmit_packets
+        else:
+            self.transmit_packets = 0
+            
+        if receive_packets != None:
+            self.receive_packets = receive_packets
+        else:
+            self.receive_packets = 0
+            
+        if color != None:
+            self.color = color
+        else:
+            self.color = 0
+        
+        self.pad = 0
+        return
+    def pack(self):
+        packed = []
+        packed.append(struct.pack("!B", self.version))
+        packed.append(struct.pack("!B", self.type))
+        packed.append(struct.pack("!H", 0)) # placeholder for length at index 2
+        packed.append(struct.pack("!L", self.xid))
+        packed.append(struct.pack("!L", self.experimenter))
+        packed.append(struct.pack("!L", self.exptype))
+        packed.append(struct.pack("!L", self._command))
+        packed.append(struct.pack("!L", self.block_index))
+        packed.append(struct.pack("!Q", self.transmit_packets))
+        packed.append(struct.pack("!Q", self.receive_packets))
+        packed.append(struct.pack("!B", self.color))
+        packed.append(struct.pack("!L", self.pad))
+        packed.append(struct.pack("!B", self.pad))                                               
+        packed.append(struct.pack("!B", self.pad))
+        packed.append(struct.pack("!B", self.pad))  
+        length = sum([len(x) for x in packed])
+        packed[2] = struct.pack("!H", length)
+        return ''.join(packed)
+
+    @staticmethod
+    def unpack(reader):
+        obj = sptn_color_based_ctr_delete()
+        _version = reader.read("!B")[0]
+        assert(_version == 4)
+        _type = reader.read("!B")[0]
+        assert(_type == 4)
+        _length = reader.read("!H")[0]
+        orig_reader = reader
+        reader = orig_reader.slice(_length, 4)
+        obj.xid = reader.read("!L")[0]
+        _experimenter = reader.read("!L")[0]
+        assert(_experimenter == 4120)
+        _exptype = reader.read("!L")[0]
+        assert(_exptype == 6)
+        obj.command = reader.read("!L")[0]
+        obj.block_index = reader.read("!L")[0]
+        obj.transmit_packets = reader.read("!Q")[0]
+        obj.receive_packets = reader.read("!Q")[0]
+        obj.color = reader.read("!B")[0]
+        _pad = reader.read("!L")[0]
+        _pad = reader.read("!B")[0]                                
+        _pad = reader.read("!B")[0] 
+        _pad = reader.read("!B")[0] 
+        return obj
+
+    def __eq__(self, other):
+        if type(self) != type(other): return False
+        if self.xid != other.xid: return False
+        if self._command != other._command: return False
+        if self.block_index != other.block_index: return False
+        if self.transmit_packets != other.transmit_packets: return False
+        if self.receive_packets != other.receive_packets: return False
+        if self.color != other.color: return False
+
+        return True
+
+    def pretty_print(self, q):
+        q.text("sptn_color_based_ctr_delete {")
+        with q.group():
+            with q.indent(2):
+                q.breakable()
+                q.text("xid = ");
+                if self.xid != None:
+                    q.text("%#x" % self.xid)
+                else:
+                    q.text('None')
+                q.text(","); q.breakable()
+                q.text("block_index = ");
+                q.text("%#x" % self.block_index)
+                q.text(","); q.breakable()
+                q.text("transmit_packets = ");
+                q.text("%#x" % self.transmit_packets)
+                q.text(","); q.breakable()
+                q.text("receive_packets = ");
+                q.text("%#x" % self.receive_packets)
+                q.text(","); q.breakable()
+                q.text("color = ");
+                q.text("%#x" % self.color)
+                                                             
+            q.breakable()
+        q.text('}')
+
+sptn_color_based_ctr_mod.subtypes[2] = sptn_color_based_ctr_delete
+
+
+class sptn_stats_reply(experimenter_stats_reply):
+    subtypes = {}
+
+    version = 4
+    type = 19
+    stats_type = 65535
+    experimenter = 4120
+
+    def __init__(self, xid=None, flags=None, subtype=None):
+        if xid != None:
+            self.xid = xid
+        else:
+            self.xid = None
+        if flags != None:
+            self.flags = flags
+        else:
+            self.flags = 0
+        if subtype != None:
+            self.subtype = subtype
+        else:
+            self.subtype = 0
+        return
+
+    def pack(self):
+        packed = []
+        packed.append(struct.pack("!B", self.version))
+        packed.append(struct.pack("!B", self.type))
+        packed.append(struct.pack("!H", 0)) # placeholder for length at index 2
+        packed.append(struct.pack("!L", self.xid))
+        packed.append(struct.pack("!H", self.stats_type))
+        packed.append(struct.pack("!H", self.flags))
+        packed.append('\x00' * 4)
+        packed.append(struct.pack("!L", self.experimenter))
+        packed.append(struct.pack("!L", self.subtype))
+        length = sum([len(x) for x in packed])
+        packed[2] = struct.pack("!H", length)
+        return ''.join(packed)
+
+    @staticmethod
+    def unpack(reader):
+        subtype, = reader.peek('!L', 20)
+        subclass = sptn_stats_reply.subtypes.get(subtype)
+        if subclass:
+            return subclass.unpack(reader)
+
+        obj = sptn_stats_reply()
+        _version = reader.read("!B")[0]
+        assert(_version == 4)
+        _type = reader.read("!B")[0]
+        assert(_type == 19)
+        _length = reader.read("!H")[0]
+        orig_reader = reader
+        reader = orig_reader.slice(_length, 4)
+        obj.xid = reader.read("!L")[0]
+        _stats_type = reader.read("!H")[0]
+        assert(_stats_type == 65535)
+        obj.flags = reader.read("!H")[0]
+        reader.skip(4)
+        _experimenter = reader.read("!L")[0]
+        assert(_experimenter == 4120)
+        obj.subtype = reader.read("!L")[0]
+        return obj
+
+    def __eq__(self, other):
+        if type(self) != type(other): return False
+        if self.xid != other.xid: return False
+        if self.flags != other.flags: return False
+        if self.subtype != other.subtype: return False
+        return True
+
+    def pretty_print(self, q):
+        q.text("sptn_stats_reply {")
+        with q.group():
+            with q.indent(2):
+                q.breakable()
+                q.text("xid = ");
+                if self.xid != None:
+                    q.text("%#x" % self.xid)
+                else:
+                    q.text('None')
+                q.text(","); q.breakable()
+                q.text("flags = ");
+                q.text("%#x" % self.flags)
+            q.breakable()
+        q.text('}')
+
+experimenter_stats_reply.subtypes[4120] = sptn_stats_reply
+
+
+
+class sptn_stats_request(experimenter_stats_request):
+    subtypes = {}
+
+    version = 4
+    type = 18
+    stats_type = 65535
+    experimenter = 4120
+
+    def __init__(self, xid=None, flags=None, subtype=None):
+        if xid != None:
+            self.xid = xid
+        else:
+            self.xid = None
+        if flags != None:
+            self.flags = flags
+        else:
+            self.flags = 0
+        if subtype != None:
+            self.subtype = subtype
+        else:
+            self.subtype = 0
+        return
+
+    def pack(self):
+        packed = []
+        packed.append(struct.pack("!B", self.version))
+        packed.append(struct.pack("!B", self.type))
+        packed.append(struct.pack("!H", 0)) # placeholder for length at index 2
+        packed.append(struct.pack("!L", self.xid))
+        packed.append(struct.pack("!H", self.stats_type))
+        packed.append(struct.pack("!H", self.flags))
+        packed.append('\x00' * 4)
+        packed.append(struct.pack("!L", self.experimenter))
+        packed.append(struct.pack("!L", self.subtype))
+        length = sum([len(x) for x in packed])
+        packed[2] = struct.pack("!H", length)
+        return ''.join(packed)
+
+    @staticmethod
+    def unpack(reader):
+        subtype, = reader.peek('!L', 20)
+        subclass = sptn_stats_request.subtypes.get(subtype)
+        if subclass:
+            return subclass.unpack(reader)
+
+        obj = sptn_stats_request()
+        _version = reader.read("!B")[0]
+        assert(_version == 4)
+        _type = reader.read("!B")[0]
+        assert(_type == 18)
+        _length = reader.read("!H")[0]
+        orig_reader = reader
+        reader = orig_reader.slice(_length, 4)
+        obj.xid = reader.read("!L")[0]
+        _stats_type = reader.read("!H")[0]
+        assert(_stats_type == 65535)
+        obj.flags = reader.read("!H")[0]
+        reader.skip(4)
+        _experimenter = reader.read("!L")[0]
+        assert(_experimenter == 6035143)
+        obj.subtype = reader.read("!L")[0]
+        return obj
+
+    def __eq__(self, other):
+        if type(self) != type(other): return False
+        if self.xid != other.xid: return False
+        if self.flags != other.flags: return False
+        if self.subtype != other.subtype: return False
+        return True
+
+    def pretty_print(self, q):
+        q.text("sptn_stats_request {")
+        with q.group():
+            with q.indent(2):
+                q.breakable()
+                q.text("xid = ");
+                if self.xid != None:
+                    q.text("%#x" % self.xid)
+                else:
+                    q.text('None')
+                q.text(","); q.breakable()
+                q.text("flags = ");
+                q.text("%#x" % self.flags)
+            q.breakable()
+        q.text('}')
+
+experimenter_stats_request.subtypes[4120] = sptn_stats_request
+
+class sptn_color_based_ctr_multipart_reply(sptn_stats_reply):
+    version = 4
+    type = 19
+    stats_type = 65535
+    experimenter = 4120
+    subtype = 15 #SPTNEXP_COLOR_BASED_CTR_MULTIPART
+
+    def __init__(self, xid=None, flags=None, entries=None):
+        if xid != None:
+            self.xid = xid
+        else:
+            self.xid = None
+        if flags != None:
+            self.flags = flags
+        else:
+            self.flags = 0
+        if entries != None:
+            self.entries = entries
+        else:
+            self.entries = []
+        return
+
+    def pack(self):
+        packed = []
+        packed.append(struct.pack("!B", self.version))
+        packed.append(struct.pack("!B", self.type))
+        packed.append(struct.pack("!H", 0)) # placeholder for length at index 2
+        packed.append(struct.pack("!L", self.xid))
+        packed.append(struct.pack("!H", self.stats_type))
+        packed.append(struct.pack("!H", self.flags))
+        packed.append('\x00' * 4)
+        packed.append(struct.pack("!L", self.experimenter))
+        packed.append(struct.pack("!L", self.subtype))
+        packed.append(loxi.generic_util.pack_list(self.entries))
+        length = sum([len(x) for x in packed])
+        packed[2] = struct.pack("!H", length)
+        return ''.join(packed)
+
+    @staticmethod
+    def unpack(reader):
+        obj = sptn_color_based_ctr_multipart_reply()
+        _version = reader.read("!B")[0]
+        assert(_version == 4)
+        _type = reader.read("!B")[0]
+        assert(_type == 19)
+        _length = reader.read("!H")[0]
+        orig_reader = reader
+        reader = orig_reader.slice(_length, 4)
+        obj.xid = reader.read("!L")[0]
+        _stats_type = reader.read("!H")[0]
+        assert(_stats_type == 65535)
+        obj.flags = reader.read("!H")[0]
+        reader.skip(4)
+        _experimenter = reader.read("!L")[0]
+        assert(_experimenter == 4120)
+        _subtype = reader.read("!L")[0]
+        assert(_subtype == 15)
+        obj.entries = loxi.generic_util.unpack_list(reader, ofp.common.sptn_color_based_ctr_entry.unpack)
+        return obj
+
+    def __eq__(self, other):
+        if type(self) != type(other): return False
+        if self.xid != other.xid: return False
+        if self.flags != other.flags: return False
+        if self.entries != other.entries: return False
+        return True
+
+    def pretty_print(self, q):
+        q.text("sptn_color_based_ctr_multipart_reply {")
+        with q.group():
+            with q.indent(2):
+                q.breakable()
+                q.text("xid = ");
+                if self.xid != None:
+                    q.text("%#x" % self.xid)
+                else:
+                    q.text('None')
+                q.text(","); q.breakable()
+                q.text("flags = ");
+                q.text("%#x" % self.flags)
+                q.text(","); q.breakable()
+                q.text("entries = ");
+                q.pp(self.entries)
+            q.breakable()
+        q.text('}')
+
+sptn_stats_reply.subtypes[15] = sptn_color_based_ctr_multipart_reply
+
+class sptn_color_based_ctr_multipart_request(sptn_stats_request):
+    version = 4
+    type = 18
+    stats_type = 65535
+    experimenter = 4120
+    subtype = 15
+
+    def __init__(self, xid=None, flags=None, block_index=None,color=None):
+        if xid != None:
+            self.xid = xid
+        else:
+            self.xid = None
+        if flags != None:
+            self.flags = flags
+        else:
+            self.flags = 0
+        if block_index != None:
+            self.block_index = block_index
+        else:
+            self.block_index = 0
+        if color != None:
+            self.color = color
+        else:
+            self.color = 0
+            
+        _pad = 0
+        return
+
+    def pack(self):
+        packed = []
+        packed.append(struct.pack("!B", self.version))
+        packed.append(struct.pack("!B", self.type))
+        packed.append(struct.pack("!H", 0)) # placeholder for length at index 2
+        packed.append(struct.pack("!L", self.xid))
+        packed.append(struct.pack("!H", self.stats_type))
+        packed.append(struct.pack("!H", self.flags))
+        packed.append('\x00' * 4)
+        packed.append(struct.pack("!L", self.experimenter))
+        packed.append(struct.pack("!L", self.subtype))
+        packed.append(struct.pack("!L", self.block_index))
+        packed.append(struct.pack("!B", self.color))
+        packed.append(struct.pack("!B", _pad))        
+        packed.append(struct.pack("!B", _pad))   
+        packed.append(struct.pack("!B", _pad))      
+        length = sum([len(x) for x in packed])
+        packed[2] = struct.pack("!H", length)
+        return ''.join(packed)
+
+    @staticmethod
+    def unpack(reader):
+        obj = sptn_color_based_ctr_multipart_request()
+        _version = reader.read("!B")[0]
+        assert(_version == 4)
+        _type = reader.read("!B")[0]
+        assert(_type == 18)
+        _length = reader.read("!H")[0]
+        orig_reader = reader
+        reader = orig_reader.slice(_length, 4)
+        obj.xid = reader.read("!L")[0]
+        _stats_type = reader.read("!H")[0]
+        assert(_stats_type == 65535)
+        obj.flags = reader.read("!H")[0]
+        reader.skip(4)
+        _experimenter = reader.read("!L")[0]
+        assert(_experimenter == 6035143)
+        _subtype = reader.read("!L")[0]
+        assert(_subtype == 9)
+        obj.block_index = reader.read("!L")[0]
+        obj.color = reader.read("!B")[0] 
+        _pad = reader.read("!B")[0]       
+        _pad = reader.read("!B")[0]  
+        _pad = reader.read("!B")[0]  
+        return obj
+
+    def __eq__(self, other):
+        if type(self) != type(other): return False
+        if self.xid != other.xid: return False
+        if self.flags != other.flags: return False
+        if self.block_index != other.block_index: return False
+        if self.color != other.color: return False
+        return True
+
+    def pretty_print(self, q):
+        q.text("sptn_color_based_ctr_multipart_request {")
+        with q.group():
+            with q.indent(2):
+                q.breakable()
+                q.text("xid = ");
+                if self.xid != None:
+                    q.text("%#x" % self.xid)
+                else:
+                    q.text('None')
+                q.text(","); q.breakable()
+                q.text("flags = ");
+                q.text("%#x" % self.flags)
+                q.text(","); q.breakable()
+                q.text("block_index = ");
+                q.text("%#x" % self.block_index)
+                q.text(","); q.breakable()
+                q.text("color = ");
+                q.text("%#x" % self.color)
+            q.breakable()
+        q.text('}')
+
+sptn_stats_request.subtypes[15] = sptn_color_based_ctr_multipart_request
 
 
 class desc_stats_reply(stats_reply):

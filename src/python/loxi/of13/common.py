@@ -1005,6 +1005,97 @@ class bsn_vlan_counter_stats_entry(loxi.OFObject):
         q.text('}')
 
 
+class sptn_color_based_ctr_entry(loxi.OFObject):
+
+    def __init__(self, block_index=None, packets=None, bytes=None, reference_count=None, color=None):
+        if block_index != None:
+            self.block_index = block_index
+        else:
+            self.block_index = 0
+            
+        if packets != None:
+            self.packets = packets
+        else:
+            self.packets = 0
+
+        if bytes != None:
+            self.bytes = bytes
+        else:
+            self.bytes = 0
+
+        if bytes != None:
+            self.bytes = bytes
+        else:
+            self.bytes = 0
+
+        if reference_count != None:
+            self.reference_count = reference_count
+        else:
+            self.reference_count = 0
+
+        if color != None:
+            self.color = color
+        else:
+            self.color = 0
+                    
+        return
+
+    def pack(self):
+        packed = []
+        packed.append(struct.pack("!L", self.block_index)) 
+        packed.append('\x00' * 4) 
+        packed.append(struct.pack("!Q", self.packets))
+        packed.append(struct.pack("!Q", self.bytes))
+        packed.append(struct.pack("!Q", self.reference_count))
+        packed.append(struct.pack("!B", self.color)) 
+        packed.append('\x00' * 3)        
+        return ''.join(packed)
+
+    @staticmethod
+    def unpack(reader):
+        obj = sptn_color_based_ctr_entry()
+        obj.block_index = reader.read("!L")[0]
+        reader.skip(4)
+        obj.packets = reader.read("!Q")[0]
+        obj.bytes = reader.read("!Q")[0]
+        obj.reference_count = reader.read("!Q")[0]    
+        obj.color = reader.read("!B")[0]            
+        reader.skip(3)
+        return obj
+
+    def __eq__(self, other):
+        if type(self) != type(other): return False
+        if self.block_index != other.block_index: return False
+        if self.packets != other.packets: return False
+        if self.bytes != other.bytes: return False
+        if self.reference_count != other.reference_count: return False
+        if self.color != other.color: return False        
+        return True
+
+    def pretty_print(self, q):
+        q.text("sptn_color_based_ctr_entry {")
+        with q.group():
+            with q.indent(2):
+                q.breakable()
+                q.text("block_index = ");
+                q.text("%#x" % self.block_index)
+                q.text(","); q.breakable()
+                q.text("packets = ");
+                q.text("%#x" % self.packets)
+                q.text(","); 
+                q.text("bytes = ");
+                q.text("%#x" % self.bytes)
+                q.text(","); 
+                q.text("reference_count = ");
+                q.text("%#x" % self.reference_count)
+                q.text(","); 
+                q.text("color = ");
+                q.text("%#x" % self.color)
+
+            q.breakable()
+        q.text('}')
+
+
 class bsn_vlan_mac(loxi.OFObject):
 
     def __init__(self, vlan_vid=None, mac=None):

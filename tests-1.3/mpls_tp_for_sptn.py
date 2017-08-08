@@ -2070,6 +2070,21 @@ class DEVICE():
         logging.info(msg.show())
         return self.agt.message_send(msg)
     
+
+
+    def addColorBasedCtr(self):
+        
+        '''
+        temporarily place here
+        '''
+
+        msg = ofp.message.sptn_color_based_ctr_add(block_index=1,transmit_packets=0,receive_packets=0,color=0xFF)
+        self.sendMessage(msg)     
+
+
+
+
+
     
     def addLsp(self,lspIndex, inLabel, outLabel, nniPort, dstMac, nniVlan = None,Qos = None):
         portMac = self.getPortMac(nniPort) 
@@ -3135,6 +3150,163 @@ class Basic(advanced_tests.AdvancedDataPlane):
             print("PW Tx Packets                    :"+str(pwTx[0])) 
             print("PW Tx Bytes                      :"+str(pwTx[1]))
             print("Duration sec                     :"+str(duration))
+                                   
+    def deleteVpws(self):
+        if self.pe1 != None:
+            
+            (rc,info) = self.pe1.deletePw(pwIndex = 1)
+            print('deletePw:'+ str(rc) + '(' + info + ')')
+
+            time.sleep(1)
+            
+            (rc,info) = self.pe1.deletePw(pwIndex = 2)
+            print('deletePw:'+ str(rc) + '(' + info + ')')
+
+            time.sleep(1)
+            
+            (rc,info) = self.pe1.deleteTunnel(tunnelIndex = 1)
+            print('deleteTunnel:'+ str(rc) + '(' + info + ')')
+
+            time.sleep(1)
+            
+            (rc,info) = self.pe1.deleteLsp(lspIndex = 1)
+            print('deleteLsp:'+ str(rc) + '(' + info + ')')
+            
+            time.sleep(1)
+
+        
+        if self.pe2 != None:
+          
+            (rc,info) = self.pe2.deletePw(pwIndex = 1)
+            print('deletePw:'+ str(rc) + '(' + info + ')')
+
+            time.sleep(1)
+
+            (rc,info) = self.pe2.deletePw(pwIndex = 2)
+            print('deletePw:'+ str(rc) + '(' + info + ')')
+
+            time.sleep(1)
+
+            (rc,info) = self.pe2.deleteTunnel(tunnelIndex = 1)
+            print('deleteTunnel:'+ str(rc) + '(' + info + ')')
+
+            time.sleep(1)
+            
+            (rc,info) = self.pe2.deleteLsp(lspIndex = 1)
+            print('deleteLsp:'+ str(rc) + '(' + info + ')')
+
+
+class BasicStats(advanced_tests.AdvancedDataPlane):
+    """
+    vpws test case for sptn Qos  
+    """      
+    def runTest(self):
+        self.pe1 = None
+        self.pe2 = None 
+        
+        self.pe1Config = config["device_map"]["pe1"]
+        self.pe2Config = config["device_map"]["pe2"]
+        print("\r\n")
+        print(hex(self.pe1Config['DPID']))
+        print(hex(self.pe2Config['DPID']))
+        
+        self.deviceIsOnline = 0
+        self.waitDeviceOnline = 3000 # wait timeout = 20s
+        while self.deviceIsOnline < 2 and self.waitDeviceOnline > 0:
+            for agt in self.controller.device_agents:
+                #print(agt.dpid)
+                if self.pe1 == None and agt.dpid == self.pe1Config['DPID']: 
+                    self.pe1 = DEVICE(agt = agt)
+                    self.deviceIsOnline += 1
+                elif self.pe2 == None and agt.dpid == self.pe2Config['DPID']:
+                    self.pe2 = DEVICE(agt = agt) 
+                    self.deviceIsOnline += 1                    
+            self.waitDeviceOnline -= 1
+            print('.')
+            time.sleep(1) # sleep 1s
+        self.assertEquals(self.deviceIsOnline, 2,'no enough device is online')
+        
+        
+        
+        while True:
+            cmd = raw_input('cmd: ')
+            print(cmd)
+            if cmd == 'basic':
+                self.addBasic()
+            elif cmd == 'sta':
+                self.addColorBasedCtr()
+            elif cmd == 'exit':
+                break
+            elif cmd == "del":
+                self.deleteVpws()
+            else:
+                print('unknown cmd') 
+   
+   
+                
+    def addColorBasedCtr(self):
+        self.pe1.addColorBasedCtr()                          
+
+
+    def addBasic(self):
+        uniPort = 3
+        uniVlan = [10]
+        nniPort_w = 4
+        nniPort_p = 2
+        nniPort_x = 5
+        nniVlan = 100
+        
+        pe1PortMacW = self.pe1.agt.port_desc[nniPort_w - 1].hw_addr 
+        pe1PortMacP = self.pe1.agt.port_desc[nniPort_p - 1].hw_addr 
+        
+        if self.pe2 == None:
+            pe2PortMac = [0x0e,0x5e,0x05,0x12,0xff,0xa0]
+        else:
+            pe2PortMacW = self.pe2.agt.port_desc[nniPort_w - 1].hw_addr 
+            pe2PortMacP = self.pe2.agt.port_desc[nniPort_p - 1].hw_addr   
+  
+        if self.pe1 != None:
+            '''
+            config self.pe1
+            '''
+            lsp_w = self.pe1.addLsp(lspIndex = 1, inLabel = 1000,outLabel = 2000,nniPort = nniPort_w,\
+                                    nniVlan = nniVlan, dstMac = pe2PortMacW)
+                
+            tunnel = self.pe1.addTunnel(tunnelIndex = 1, lsp_list = [lsp_w])
+            
+            uniVlan = [10]
+            pw = self.pe1.addPw(pwIndex = 1,inLabel = 10 ,outLabel = 20,uniPort = uniPort, \
+                                uniVlan = uniVlan, tunnel = tunnel)
+            uniVlan = [11]
+            pw = self.pe1.addPw(pwIndex = 2,inLabel = 11 ,outLabel = 21,uniPort = uniPort, \
+                                uniVlan = uniVlan, tunnel = tunnel)          
+ 
+            self.assertEqual(self.pe1.apply_status(), 0,
+             'response status != expect status 0')
+        
+
+        if self.pe2 != None:
+            '''
+            config pe2
+            ''' 
+            lsp_w = self.pe2.addLsp(lspIndex = 1, inLabel = 2000,outLabel = 1000,nniPort = nniPort_w,
+                nniVlan = nniVlan,dstMac = pe1PortMacW)
+                            
+            tunnel = self.pe2.addTunnel(tunnelIndex = 1, lsp_list = [lsp_w])
+            
+            uniVlan = [10]
+            pw = self.pe2.addPw(pwIndex = 3,inLabel = 20 ,outLabel = 10,uniPort = uniPort,\
+                                 uniVlan = uniVlan, tunnel = tunnel)
+            uniVlan = [11]
+            pw = self.pe2.addPw(pwIndex = 4,inLabel = 21 ,outLabel = 11,uniPort = uniPort,\
+                                 uniVlan = uniVlan, tunnel = tunnel)            
+
+   
+            self.assertEqual(self.pe2.apply_status(), 0,
+                     'response status != expect status 0')
+
+    def showStatistic(self):
+        pass
                                    
     def deleteVpws(self):
         if self.pe1 != None:
