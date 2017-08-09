@@ -1060,7 +1060,7 @@ class sptn_color_based_ctr_entry(loxi.OFObject):
         obj.bytes = reader.read("!Q")[0]
         obj.reference_count = reader.read("!Q")[0]    
         obj.color = reader.read("!B")[0]            
-        reader.skip(3)
+        reader.skip(7)
         return obj
 
     def __eq__(self, other):

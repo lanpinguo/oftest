@@ -2078,11 +2078,21 @@ class DEVICE():
         temporarily place here
         '''
 
-        msg = ofp.message.sptn_color_based_ctr_add(block_index=1,transmit_packets=0,receive_packets=0,color=0xFF)
+        msg = ofp.message.sptn_color_based_ctr_add(block_index=1,transmit_packets=0,receive_packets=0,color=1)
         self.sendMessage(msg)     
 
 
+    def getColorBasedCtr(self):
+        
+        '''
+        temporarily place here
+        '''
 
+        msg = ofp.message.sptn_color_based_ctr_multipart_request(block_index=1,color=1)
+        self.sendMessage(msg)  
+
+        #msg = ofp.message.sptn_color_based_ctr_multipart_request(block_index=2,color=1)
+        #self.sendMessage(msg)  
 
 
     
@@ -3235,6 +3245,8 @@ class BasicStats(advanced_tests.AdvancedDataPlane):
                 self.addBasic()
             elif cmd == 'sta':
                 self.addColorBasedCtr()
+            elif cmd == 'get':
+                self.getColorBasedCtr()
             elif cmd == 'exit':
                 break
             elif cmd == "del":
@@ -3246,7 +3258,10 @@ class BasicStats(advanced_tests.AdvancedDataPlane):
                 
     def addColorBasedCtr(self):
         self.pe1.addColorBasedCtr()                          
-
+        self.pe2.addColorBasedCtr()     
+    def getColorBasedCtr(self):
+        self.pe1.getColorBasedCtr()    
+        self.pe2.getColorBasedCtr()  
 
     def addBasic(self):
         uniPort = 3

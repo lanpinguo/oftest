@@ -11236,8 +11236,8 @@ class sptn_color_based_ctr_multipart_request(sptn_stats_request):
             self.color = color
         else:
             self.color = 0
-            
-        _pad = 0
+    
+
         return
 
     def pack(self):
@@ -11253,9 +11253,7 @@ class sptn_color_based_ctr_multipart_request(sptn_stats_request):
         packed.append(struct.pack("!L", self.subtype))
         packed.append(struct.pack("!L", self.block_index))
         packed.append(struct.pack("!B", self.color))
-        packed.append(struct.pack("!B", _pad))        
-        packed.append(struct.pack("!B", _pad))   
-        packed.append(struct.pack("!B", _pad))      
+        packed.append('\x00' * 3)      
         length = sum([len(x) for x in packed])
         packed[2] = struct.pack("!H", length)
         return ''.join(packed)
@@ -11276,9 +11274,9 @@ class sptn_color_based_ctr_multipart_request(sptn_stats_request):
         obj.flags = reader.read("!H")[0]
         reader.skip(4)
         _experimenter = reader.read("!L")[0]
-        assert(_experimenter == 6035143)
+        assert(_experimenter == 4120)
         _subtype = reader.read("!L")[0]
-        assert(_subtype == 9)
+        assert(_subtype == 15)
         obj.block_index = reader.read("!L")[0]
         obj.color = reader.read("!B")[0] 
         _pad = reader.read("!B")[0]       
