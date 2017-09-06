@@ -1285,3 +1285,129 @@ class set_queue(action):
 action.subtypes[21] = set_queue
 
 
+class sptn(experimenter):
+    subtypes = {}
+
+    type = 65535
+    experimenter = 4120
+
+    def __init__(self, subtype=None):
+        if subtype != None:
+            self.subtype = subtype
+        else:
+            self.subtype = 0
+        return
+
+    def pack(self):
+        packed = []
+        packed.append(struct.pack("!H", self.type))
+        packed.append(struct.pack("!H", 0)) # placeholder for len at index 1
+        packed.append(struct.pack("!L", self.experimenter))
+        packed.append(struct.pack("!H", self.subtype))
+        packed.append('\x00' * 2)
+        packed.append('\x00' * 4)
+        length = sum([len(x) for x in packed])
+        packed[1] = struct.pack("!H", length)
+        return ''.join(packed)
+
+    @staticmethod
+    def unpack(reader):
+        subtype, = reader.peek('!H', 8)
+        subclass = nicira.subtypes.get(subtype)
+        if subclass:
+            return subclass.unpack(reader)
+
+        obj = nicira()
+        _type = reader.read("!H")[0]
+        assert(_type == 65535)
+        _len = reader.read("!H")[0]
+        orig_reader = reader
+        reader = orig_reader.slice(_len, 4)
+        _experimenter = reader.read("!L")[0]
+        assert(_experimenter == 4120)
+        obj.subtype = reader.read("!H")[0]
+        reader.skip(2)
+        reader.skip(4)
+        return obj
+
+    def __eq__(self, other):
+        if type(self) != type(other): return False
+        if self.subtype != other.subtype: return False
+        return True
+
+    def pretty_print(self, q):
+        q.text("sptn {")
+        with q.group():
+            with q.indent(2):
+                q.breakable()
+            q.breakable()
+        q.text('}')
+
+experimenter.subtypes[4120] = sptn
+
+
+class sptn_act_color_based_ctr(sptn):
+    type = 65535
+    subtype = 20
+
+    def __init__(self, color, index):
+        if color != None:
+            self.color = color
+        else:
+            self.color = 0
+            
+        if index != None:
+            self.index = index
+        else:
+            self.index = 0
+            
+        return
+
+    def pack(self):
+        packed = []
+        packed.append(struct.pack("!H", self.type))
+        packed.append(struct.pack("!H", 0)) # placeholder for len at index 1
+        packed.append(struct.pack("!L", self.experimenter))
+        packed.append(struct.pack("!H", self.subtype))
+        packed.append(struct.pack("!B", self.color))
+        packed.append('\x00')
+        packed.append(struct.pack("!L", self.index))
+        length = sum([len(x) for x in packed])
+        packed[1] = struct.pack("!H", length)
+        return ''.join(packed)
+
+    @staticmethod
+    def unpack(reader):
+        obj = sptn_act_color_based_ctr()
+        _type = reader.read("!H")[0]
+        assert(_type == 65535)
+        _len = reader.read("!H")[0]
+        orig_reader = reader
+        reader = orig_reader.slice(_len, 4)
+        _experimenter = reader.read("!L")[0]
+        assert(_experimenter == self.experimenter)
+        _subtype = reader.read("!H")[0]
+        assert(_subtype == self.subtype)
+        obj.color = reader.read("!B")[0]
+        reader.skip(1)
+        obj.index = reader.read("!L")[0]        
+        return obj
+
+    def __eq__(self, other):
+        if type(self) != type(other): return False
+        return True
+
+    def pretty_print(self, q):
+        q.text("sptn_act_color_based_ctr {")
+        with q.group():
+            with q.indent(2):
+                q.breakable()
+                q.text("color = ");
+                q.text("%#x" % self.color)
+                q.text(","); q.breakable()
+                q.text("index = ");
+                q.text("%#x" % self.index)                
+            q.breakable()
+        q.text('}')
+
+sptn.subtypes[20] = sptn_act_color_based_ctr
