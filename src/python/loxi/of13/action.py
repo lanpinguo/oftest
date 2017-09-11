@@ -1411,3 +1411,164 @@ class sptn_act_color_based_ctr(sptn):
         q.text('}')
 
 sptn.subtypes[20] = sptn_act_color_based_ctr
+
+
+class sptn_act_set_mpls_tc_from_vpn_table(sptn):
+    type = 65535
+    subtype = 7
+
+    def __init__(self, qos_index, traffic_class, color):
+        if qos_index != None:
+            self.qos_index = qos_index
+        else:
+            self.qos_index = 0
+            
+        if traffic_class != None:
+            self.traffic_class = traffic_class
+        else:
+            self.traffic_class = 0
+            
+        if color != None:
+            self.color = color
+        else:
+            self.color = 0
+
+        return
+
+    def pack(self):
+        packed = []
+        packed.append(struct.pack("!H", self.type))
+        packed.append(struct.pack("!H", 0)) # placeholder for len at index 1
+        packed.append(struct.pack("!L", self.experimenter))
+        packed.append(struct.pack("!H", self.subtype))
+        packed.append(struct.pack("!H", self.qos_index))
+        packed.append(struct.pack("!B", self.traffic_class))
+        packed.append(struct.pack("!B", self.color))
+        packed.append('\x00' * 2)
+        length = sum([len(x) for x in packed])
+        packed[1] = struct.pack("!H", length)
+        return ''.join(packed)
+
+    @staticmethod
+    def unpack(reader):
+        obj = sptn_act_color_based_ctr()
+        _type = reader.read("!H")[0]
+        assert(_type == 65535)
+        _len = reader.read("!H")[0]
+        orig_reader = reader
+        reader = orig_reader.slice(_len, 4)
+        _experimenter = reader.read("!L")[0]
+        assert(_experimenter == self.experimenter)
+        _subtype = reader.read("!H")[0]
+        assert(_subtype == self.subtype)
+        obj.qos_index = reader.read("!H")[0]
+        obj.traffic_class = reader.read("!B")[0]
+        obj.color = reader.read("!B")[0]
+        reader.skip(2)
+        return obj
+
+
+    def __eq__(self, other):
+        if type(self) != type(other): return False
+        if self.qos_index != oother.qos_index : return False
+        if self.traffic_class != oother.traffic_class : return False
+        if self.color != oother.color : return False              
+        return True
+
+    def pretty_print(self, q):
+        q.text("sptn_act_set_mpls_tc_from_vpn_table {")
+        with q.group():
+            with q.indent(2):
+                q.breakable()
+                q.text("qos_index = ");
+                q.text("%#d" % self.qos_index)
+                q.text(","); q.breakable()                
+                q.text("traffic_class = ");
+                q.text("%#d" % self.traffic_class)
+                q.text(","); q.breakable()
+                q.text("color = ");
+                q.text("%#d" % self.color)                
+            q.breakable()
+        q.text('}')
+
+sptn.subtypes[7] = sptn_act_set_mpls_tc_from_vpn_table
+
+
+class sptn_act_set_mpls_tc_from_tunnel_table(sptn):
+    type = 65535
+    subtype = 17
+
+    def __init__(self, qos_index, traffic_class, color):
+        if qos_index != None:
+            self.qos_index = qos_index
+        else:
+            self.qos_index = 0
+            
+        if traffic_class != None:
+            self.traffic_class = traffic_class
+        else:
+            self.traffic_class = 0
+            
+        if color != None:
+            self.color = color
+        else:
+            self.color = 0
+
+        return
+
+    def pack(self):
+        packed = []
+        packed.append(struct.pack("!H", self.type))
+        packed.append(struct.pack("!H", 0)) # placeholder for len at index 1
+        packed.append(struct.pack("!L", self.experimenter))
+        packed.append(struct.pack("!H", self.subtype))
+        packed.append(struct.pack("!H", self.qos_index))
+        packed.append(struct.pack("!B", self.traffic_class))
+        packed.append(struct.pack("!B", self.color))
+        packed.append('\x00' * 2)
+        length = sum([len(x) for x in packed])
+        packed[1] = struct.pack("!H", length)
+        return ''.join(packed)
+
+    @staticmethod
+    def unpack(reader):
+        obj = sptn_act_color_based_ctr()
+        _type = reader.read("!H")[0]
+        assert(_type == 65535)
+        _len = reader.read("!H")[0]
+        orig_reader = reader
+        reader = orig_reader.slice(_len, 4)
+        _experimenter = reader.read("!L")[0]
+        assert(_experimenter == self.experimenter)
+        _subtype = reader.read("!H")[0]
+        assert(_subtype == self.subtype)
+        obj.qos_index = reader.read("!H")[0]
+        obj.traffic_class = reader.read("!B")[0]
+        obj.color = reader.read("!B")[0]
+        reader.skip(2)
+        return obj
+
+    def __eq__(self, other):
+        if type(self) != type(other): return False
+        if self.qos_index != oother.qos_index : return False
+        if self.traffic_class != oother.traffic_class : return False
+        if self.color != oother.color : return False              
+        return True
+
+    def pretty_print(self, q):
+        q.text("sptn_act_set_mpls_tc_from_tunnel_table {")
+        with q.group():
+            with q.indent(2):
+                q.breakable()
+                q.text("qos_index = ");
+                q.text("%#d" % self.qos_index)
+                q.text(","); q.breakable()                
+                q.text("traffic_class = ");
+                q.text("%#d" % self.traffic_class)
+                q.text(","); q.breakable()
+                q.text("color = ");
+                q.text("%#d" % self.color)                
+            q.breakable()
+        q.text('}')
+
+sptn.subtypes[7] = sptn_act_set_mpls_tc_from_tunnel_table

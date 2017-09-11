@@ -1,0 +1,292 @@
+#!/usr/bin/env python
+"""
+@package ofdiag
+
+OpenFlow test framework top level script
+
+This script is the entry point for running OpenFlow tests using the OFT
+framework. For usage information, see --help or the README.
+
+To add a new command line option, edit both the CONFIG_DEFAULT dictionary and
+the config_setup function. The option's result will end up in the global
+oftest.config dictionary.
+"""
+
+from __future__ import print_function
+
+import sys
+import optparse
+import logging
+import unittest
+import time
+import os
+import imp
+import random
+import signal
+import fnmatch
+import copy
+
+import binascii
+import unittest
+from pcapfile import savefile
+from pcapfile.protocols.linklayer import ethernet
+from pcapfile.protocols.network.ip import IP
+from pcapfile.protocols.transport.tcp import TCP
+from _ast import Interactive
+
+
+
+
+ROOT_DIR = os.path.dirname(os.path.realpath(__file__))
+
+PY_SRC_DIR = os.path.join(ROOT_DIR, 'src', 'python')
+if os.path.exists(os.path.join(PY_SRC_DIR, 'oftest')):
+    # Running from source tree
+    sys.path.insert(0, PY_SRC_DIR)
+
+import oftest
+from oftest import config
+import oftest.ofutils
+import oftest.help_formatter
+import loxi
+from oftest.record import Record
+
+
+##@var DEBUG_LEVELS
+# Map from strings to debugging levels
+DEBUG_LEVELS = {
+    'debug'              : logging.DEBUG,
+    'verbose'            : logging.DEBUG,
+    'info'               : logging.INFO,
+    'warning'            : logging.WARNING,
+    'warn'               : logging.WARNING,
+    'error'              : logging.ERROR,
+    'critical'           : logging.CRITICAL
+}
+
+##@var CONFIG_DEFAULT
+# The default configuration dictionary for OFT
+CONFIG_DEFAULT = {
+    # Miscellaneous options
+    "openflow_version"   : "1.3",
+    "file"               : None,
+    "index"              : -1,
+    "protocol_port"      : 6633,
+    # Logging options
+    "log_file"           : "ofdiag.log",
+    "log_dir"            : None,
+    "debug"              : "verbose",
+
+
+}
+
+def config_setup():
+    """
+    Set up the configuration including parsing the arguments
+
+    @return A pair (config, args) where config is an config
+    object and args is any additional arguments from the command line
+    """
+
+    usage = "usage: %prog [options] (test|group)..."
+
+    description = """\
+OFTest is a framework and set of tests for validating OpenFlow switches.
+
+ofdiag is a diag tool for parsing openflow packets.
+"""
+
+    # Parse --interface
+    def check_interface(option, opt, value):
+        try:
+            ofport, interface = value.split('@', 1)
+            ofport = int(ofport)
+        except ValueError:
+            raise optparse.OptionValueError("incorrect interface syntax (got %s, expected 'ofport@interface')" % repr(value))
+        return (ofport, interface)
+
+    class Option(optparse.Option):
+        TYPES = optparse.Option.TYPES + ("interface",)
+        TYPE_CHECKER = copy.copy(optparse.Option.TYPE_CHECKER)
+        TYPE_CHECKER["interface"] = check_interface
+
+    parser = optparse.OptionParser(version="%prog 0.1",
+                                   usage=usage,
+                                   description=description,
+                                   formatter=oftest.help_formatter.HelpFormatter(),
+                                   option_class=Option)
+
+    # Set up default values
+    parser.set_defaults(**CONFIG_DEFAULT)
+
+    parser.add_option("-f","--file",help=" Name of the pcap file")
+    parser.add_option("-i","--index",type="int",help=" the index of packet wanted to parse in the pcap file")
+
+
+    # Might need this if other parsers want command line
+    # parser.allow_interspersed_args = False
+    (options, args) = parser.parse_args()
+
+
+    # Convert options from a Namespace to a plain dictionary
+    config = CONFIG_DEFAULT.copy()
+    for key in config.keys():
+        config[key] = getattr(options, key)
+
+    return (config, args)
+
+def logging_setup(config):
+    """
+    Set up logging based on config
+    """
+
+    logging.getLogger().setLevel(DEBUG_LEVELS[config["debug"]])
+
+    if config["log_dir"] != None:
+        if os.path.exists(config["log_dir"]):
+            import shutil
+            shutil.rmtree(config["log_dir"])
+        os.makedirs(config["log_dir"])
+    else:
+        if os.path.exists(config["log_file"]):
+            os.remove(config["log_file"])
+
+    oftest.open_logfile('main')
+
+
+
+
+
+
+
+def die(msg, exit_val=1):
+    logging.critical(msg)
+    sys.exit(exit_val)
+
+#
+# Main script
+#
+
+# Setup global configuration
+(new_config, args) = config_setup()
+oftest.config.update(new_config)
+
+logging_setup(config)
+
+logging.info("++++++++ " + time.asctime() + " ++++++++")
+
+# Pick an OpenFlow protocol module based on the configured version
+name_to_version = dict((v,k) for k, v in loxi.version_names.iteritems())
+#print(name_to_version[config["openflow_version"]])
+sys.modules["ofp"] = loxi.protocol(name_to_version[config["openflow_version"]])
+
+# Configured openflow version
+import ofp as cfg_ofp
+
+buffered_input = ""
+
+def pkt_handle( pkt_in):
+    """
+    Check for all packet handling conditions
+
+    Parse and verify message 
+    Check if XID matches something waiting
+    Check if message is being expected for a poll operation
+    Check if keep alive is on and message is an echo request
+    Check if any registered handler wants the packet
+    Enqueue if none of those conditions is met
+
+    an echo request in case keep_alive is true, followed by
+    registered message handlers.
+    @param pkt The raw packet (string) which may contain multiple OF msgs
+    """
+
+    # snag any left over data from last read()
+    global buffered_input
+    pkt = buffered_input + binascii.a2b_hex(pkt_in)
+    buffered_input = ""
+    # Process each of the OF msgs inside the pkt
+    offset = 0
+    while offset < len(pkt):
+        if offset + 8 > len(pkt):
+            break
+
+        # Parse the header to get type
+        hdr_version, hdr_type, hdr_length, hdr_xid = cfg_ofp.message.parse_header(pkt[offset:])
+       
+        # Use loxi to resolve to ofp of matching version
+        ofp = loxi.protocol(hdr_version)
+
+        # Extract the raw message bytes
+        if (offset + hdr_length) > len(pkt):
+            break
+        rawmsg = pkt[offset : offset + hdr_length]
+        offset += hdr_length
+
+        #if self.filter_packet(rawmsg, hdr):
+        #    continue
+
+        msg = ofp.message.parse_message(rawmsg)
+        if not msg:
+            self.parse_errors += 1
+            self.logger.warn("Could not parse message")
+            continue
+
+        print( msg.show())
+
+    # end of 'while offset < len(pkt)'
+    #   note that if offset = len(pkt), this is
+    #   appends a harmless empty string
+    buffered_input += pkt[offset:]
+
+
+
+def packet_parse(packets,pkt_index):
+    pkt_index = pkt_index - 1
+    if pkt_index < 0:
+        pkt_index = 0
+    pcap_packet = packets[pkt_index] 
+    frame = pcap_packet.packet
+    #print(frame.dst)
+    packet = frame.payload
+    if isinstance(packet, IP):
+        segment = packet.payload
+        if isinstance(segment, TCP):
+            if segment.dst_port == config['protocol_port'] \
+                or segment.src_port == config['protocol_port']: 
+                #print(type(segment.payload))
+                #print(segment.payload)
+                pkt_handle(segment.payload)
+            else:
+                print('not a openflow packet')
+        else:
+            print('not a TCP packet')
+
+
+
+if config["file"] == None:
+    print("no pcap file is specified") 
+    die("no pcap file is specified")
+    
+testcap = open(config["file"], 'rb')
+capfile = savefile.load_savefile(testcap, layers=3, verbose=False)
+
+run_mode = "direct"
+if config["index"] == -1:
+    run_mode = "interactive"
+
+if run_mode == 'direct':
+    packet_parse(capfile.packets,config["index"])
+else:
+    while True:
+        cmd = raw_input('>')
+        if cmd[:2] == 'ls':
+            pkt_index = int(cmd[2:].strip(' '))
+            #print(pkt_index)
+            packet_parse(capfile.packets,pkt_index)
+        elif cmd == 'exit':
+            break 
+
+
+
+
