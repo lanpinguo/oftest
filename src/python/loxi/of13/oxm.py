@@ -7124,9 +7124,6 @@ class mpls_tp_color_actions_index(oxm):
                 q.breakable()
                 q.text("value = ");
                 q.text("%#x" % self.value)
-                q.text(","); q.breakable()
-                q.text("value_mask = ");
-                q.text("%#x" % self.value_mask)
             q.breakable()
         q.text('}')
 
