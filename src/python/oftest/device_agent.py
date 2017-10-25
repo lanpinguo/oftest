@@ -92,7 +92,13 @@ class DeviceAgent(Thread):
             if pd.port_no == port:
                 return pd.hw_addr
         return []
+    
+    def updateSwitchSocket(self,switch_socket,switch_addr):
         
+        with self.tx_lock,self.xid_cv:
+            self.switch_socket = switch_socket 
+            self.switch_addr = switch_addr
+            
     def message_send(self, msg):
         """
         Send the message to the switch
@@ -175,7 +181,7 @@ class DeviceAgent(Thread):
         """
 
         self.dbg_state = "running"
-        print("device_agent: " + str(self.name) + "   --socket " + str(self.switch_addr))
+        self.logger.info( str(self.name) + "   --socket " + str(self.switch_addr))
         while self.active:
             try:
                 ready, sel_out, sel_err = select.select([self.switch_socket], [], [], 1)

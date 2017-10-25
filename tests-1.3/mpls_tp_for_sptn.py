@@ -103,12 +103,14 @@ class RES_POOL():
     """
     def __init__(self):
         self.livenessPort = 0xF0000000
-        self.FailoverGroupIndex = 0
+        self.FailoverGroupIndex = -1
         self.MplsL2VpnGroupIndex = 0
         self.localOpenFlowMpId = 0  
         self.colorBasedCtrId = 0
-        
-         
+        self.MplsTunnelLabel1GroupIndex = 0        
+        self.MplsInterfaceGroupIndex = 0 
+        self.MplsSwapLabelGroupIndex = 0 
+                         
     def requestLivenessPortIndex(self):
         self.livenessPort += 1
         #print(self.livenessPort)
@@ -123,6 +125,18 @@ class RES_POOL():
         self.MplsL2VpnGroupIndex += 1
         #print(self.MplsL2VpnGroupIndex)
         return self.MplsL2VpnGroupIndex   
+
+    def requestMplsTunnelLabel1GroupIndex(self):
+        self.MplsTunnelLabel1GroupIndex += 1
+        return self.MplsTunnelLabel1GroupIndex   
+
+    def requestMplsInterfaceGroupIndex(self):
+        self.MplsInterfaceGroupIndex += 1
+        return self.MplsInterfaceGroupIndex  
+
+    def requestMplsSwapLabelGroupIndex(self):
+        self.MplsSwapLabelGroupIndex += 1
+        return self.MplsSwapLabelGroupIndex  
  
     def requestLocalOpenFlowMpId(self):
         self.localOpenFlowMpId += 1
@@ -224,7 +238,10 @@ class TUNNEL():
             
             id = 0
             id = ofdb_group_type_set(id,ofdpa.OFDPA_GROUP_ENTRY_TYPE_MPLS_FORWARDING)
-            id = ofdb_group_mpls_index_set(id , self.tunnelIndex)
+            if res is None:
+                id = ofdb_group_mpls_index_set(id , self.tunnelIndex)
+            else:
+                id = ofdb_group_mpls_index_set(id , res.requestFailoverGroupIndex())
             id = ofdb_group_mpls_subtype_set(id , ofdpa.OFDPA_MPLS_FAST_FAILOVER)
             self.bundleHandle = id
             
@@ -293,7 +310,7 @@ class LSP():
     """
     lsp flow config data model
     """
-    def __init__(self,lspIndex, inLabel, outLabel, nniPort, portMac, dstMac, nniVlan = None,Qos = None, colorBasedCtr = None):
+    def __init__(self,lspIndex, inLabel, outLabel, nniPort, portMac, dstMac, nniVlan = None,Qos = None, colorBasedCtr = None,res = None):
         
         assert(lspIndex != None)
         assert(inLabel != None)
@@ -354,7 +371,10 @@ class LSP():
         ref_group = id
         id = 0
         id = ofdb_group_type_set(id,ofdpa.OFDPA_GROUP_ENTRY_TYPE_MPLS_LABEL)
-        id = ofdb_group_mpls_index_set(id , self.lspIndex)
+        if res is None:
+            id = ofdb_group_mpls_index_set(id , self.lspIndex)
+        else:
+            id = ofdb_group_mpls_index_set(id , res.requestMplsInterfaceGroupIndex())  
         id = ofdb_group_mpls_subtype_set(id , ofdpa.OFDPA_MPLS_INTERFACE)
         self.mpls_interface_group_id = id
         action_list = [ofp.action.group(group_id = ref_group) ,
@@ -386,6 +406,10 @@ class LSP():
         id = 0
         id = ofdb_group_type_set(id,ofdpa.OFDPA_GROUP_ENTRY_TYPE_MPLS_LABEL)
         id = ofdb_group_mpls_index_set(id , self.lspIndex)
+        if res is None:
+            id = ofdb_group_mpls_index_set(id , self.lspIndex)
+        else:
+            id = ofdb_group_mpls_index_set(id , res.requestMplsTunnelLabel1GroupIndex())          
         id = ofdb_group_mpls_subtype_set(id , ofdpa.OFDPA_MPLS_TUNNEL_LABEL1)
         self.bundleHandle = id
         action_list = [ofp.action.group(group_id = ref_group) ,
@@ -1729,7 +1753,7 @@ class SWAP():
     """
     def __init__(self,swapIndex, inLabel, outLabel, nniPort_in, nniPort_out,
                   portMac_in, portMac_out, dstMac,
-                  nniVlan_in = None, nniVlan_out = None, Qos = None):
+                  nniVlan_in = None, nniVlan_out = None, Qos = None,res = None):
         self.nni2uni = []
         self.uni2nni = []
         self.Oam_nni2uni = []
@@ -1778,7 +1802,10 @@ class SWAP():
         ref_group = id
         id = 0
         id = ofdb_group_type_set(id,ofdpa.OFDPA_GROUP_ENTRY_TYPE_MPLS_LABEL)
-        id = ofdb_group_mpls_index_set(id , self.swapIndex)
+        if res is None:
+            id = ofdb_group_mpls_index_set(id , self.swapIndex)
+        else:
+            id = ofdb_group_mpls_index_set(id , res.requestMplsInterfaceGroupIndex())  
         id = ofdb_group_mpls_subtype_set(id , ofdpa.OFDPA_MPLS_INTERFACE)
         self.mpls_interface_group_id = id
         action_list = [ofp.action.group(group_id = ref_group) ,
@@ -1810,7 +1837,10 @@ class SWAP():
         ref_group = id
         id = 0
         id = ofdb_group_type_set(id,ofdpa.OFDPA_GROUP_ENTRY_TYPE_MPLS_LABEL)
-        id = ofdb_group_mpls_index_set(id , self.swapIndex)
+        if res is None:
+            id = ofdb_group_mpls_index_set(id , self.swapIndex)
+        else:
+            id = ofdb_group_mpls_index_set(id , res.requestMplsSwapLabelGroupIndex())            
         id = ofdb_group_mpls_subtype_set(id , ofdpa.OFDPA_MPLS_SWAP_LABEL)
         self.bundleHandle = id
         action_list = [ofp.action.group(group_id = ref_group) ,                       
@@ -1993,7 +2023,7 @@ class DEVICE():
         self.status = 0
         self.agt.register(msg_type = ofp.OFPT_ERROR, handler = self.error_handler)
         self.agt.register(msg_type = ofp.OFPT_PACKET_IN, handler = self.packetIn_handler)        
-        self.netconf_connected = False
+
         self.res_pool = RES_POOL()
         self.logger = logging.getLogger("DEVICE")
         
@@ -2148,7 +2178,8 @@ class DEVICE():
             colorBasedCtr = None
             
         new_lsp = LSP(lspIndex = lspIndex, inLabel = inLabel, outLabel = outLabel, nniPort = nniPort,\
-            portMac = portMac , dstMac = dstMac, nniVlan = nniVlan | ofdpa.OFDPA_VID_PRESENT, Qos = Qos, colorBasedCtr = colorBasedCtr)
+            portMac = portMac , dstMac = dstMac, nniVlan = nniVlan | ofdpa.OFDPA_VID_PRESENT, Qos = Qos, colorBasedCtr = colorBasedCtr,
+            res = self.res_pool)
         
         
         
@@ -2206,8 +2237,8 @@ class DEVICE():
 
     def addSwap(self,swapIndex, inLabel, outLabel, nniPort_in, nniPort_out, dstMac, nniVlan_in = None,
                  nniVlan_out = None,Qos = None):
-        portMac_in = self.agt.port_desc[nniPort_in - 1].hw_addr
-        portMac_out = self.agt.port_desc[nniPort_out - 1].hw_addr 
+        portMac_in = self.getPortMac(nniPort_in)
+        portMac_out = self.getPortMac(nniPort_out) 
         new_swap = SWAP(swapIndex = swapIndex, inLabel = inLabel, outLabel = outLabel, 
                         nniPort_in = nniPort_in,
                         nniPort_out = nniPort_out,
@@ -2216,7 +2247,8 @@ class DEVICE():
                         dstMac = dstMac,
                         nniVlan_in = nniVlan_in | ofdpa.OFDPA_VID_PRESENT,
                         nniVlan_out = nniVlan_out | ofdpa.OFDPA_VID_PRESENT,
-                        Qos = Qos)
+                        Qos = Qos,
+                        res = self.res_pool)
         
         (uni2nni , nni2uni) = new_swap.get_flow_db()
         for msg in uni2nni:
@@ -2323,12 +2355,12 @@ class DEVICE():
         '''
         Todo netconf config here
         '''
-        if self.netconf_connected == False:
+        if self.agt.netconf.connected() == False:
             (rc , info) = self.agt.netconf.connect()
             if rc != 0:
                 print(info)
                 return -1
-            self.netconf_connected = True
+
         if meg is None:
           print('Error: meg is none')
           return -1
@@ -2359,17 +2391,51 @@ class DEVICE():
                 self.sendMessage(msg)
                 self.databaseNni2Uni.append(msg) 
             #do_barrier(self.agt)
+
+    def updateLspOam(self,newMeg,lspIndex):
+        '''
+        Todo netconf config here
+        '''
+        if self.agt.netconf.connected() == False:
+            (rc , info) = self.agt.netconf.connect()
+            if rc != 0:
+                print(info)
+                return -1
+
+        if newMeg is None:
+          print('Error: meg is none')
+          return -1
+  
+        targetLsp = None    
+        for tmp in self.lsp:
+            if tmp.lspIndex == lspIndex:
+                targetLsp = tmp
+        if targetLsp:
+            #Only update mepid
+            megObj = targetLsp.meg
+            megObj.lmepid = newMeg.lmepid
+      
+        else:
+            return -1
+        
+        (rc , info) = self.agt.netconf.config(megObj.getConfig(opt="replace"))
+        if rc != 0:
+            print(info)
+            return -1
+        
+        return 0
+
             
     def addOam2Pw(self,meg,pw,type=ofdpa.OFDPA_PW_PROT_PATH_WORK):
         '''
         Todo netconf config here
         '''
-        if self.netconf_connected == False:
+        if self.agt.netconf.connected() == False:
             (rc , info) = self.agt.netconf.connect()
             if rc != 0:
                 print(info)
                 return -1
-            self.netconf_connected = True
+
         meg.updateLocalMpId(self.res_pool.requestLocalOpenFlowMpId())    
         (rc , info) = self.agt.netconf.config(meg.getConfig())
         if rc != 0:
@@ -2452,12 +2518,12 @@ class DEVICE():
             '''  
             mlpConf = targetMlp.removeMlpHeadEnd(mlpHeadEnd = targetMlp.mlpHeadEnds[0])
             
-            if self.netconf_connected == False:
+            if self.agt.netconf.connected() == False:
                 (rc , info) = self.agt.netconf.connect()
                 if rc != 0:
                     print(info)
                     return (-1 , 'connect not exist')
-            self.netconf_connected = True
+
             
             (rc , info) = self.agt.netconf.config(mlpConf)
             if rc != 0:
@@ -2468,12 +2534,12 @@ class DEVICE():
             REPLACE HEAD END
             '''   
             mlpConf = targetMlp.replaceMlpHeadEnd(mlpHeadEnd = worker)
-            if self.netconf_connected == False:
+            if self.agt.netconf.connected() == False:
                 (rc , info) = self.agt.netconf.connect()
                 if rc != 0:
                     print(info)
                     return (-1 , 'connect not exist')
-            self.netconf_connected = True
+
             
             (rc , info) = self.agt.netconf.config(mlpConf)
             if rc != 0:
@@ -2488,12 +2554,12 @@ class DEVICE():
             ''' 
             mlpConf = targetMlp.removeMlpHeadEnd(mlpHeadEnd = targetMlp.mlpHeadEnds[1])
   
-            if self.netconf_connected == False:
+            if self.agt.netconf.connected() == False:
                 (rc , info) = self.agt.netconf.connect()
                 if rc != 0:
                     print(info)
                     return (-1 , 'connect not exist')
-            self.netconf_connected = True
+
             
             (rc , info) = self.agt.netconf.config(mlpConf)
             if rc != 0:
@@ -2504,12 +2570,12 @@ class DEVICE():
             REPLACE HEAD END
             '''            
             mlpConf = targetMlp.replaceMlpHeadEnd(mlpHeadEnd = protector)
-            if self.netconf_connected == False:
+            if self.agt.netconf.connected() == False:
                 (rc , info) = self.agt.netconf.connect()
                 if rc != 0:
                     print(info)
                     return (-1 , 'connect not exist')
-            self.netconf_connected = True
+
             
             (rc , info) = self.agt.netconf.config(mlpConf)
             if rc != 0:
@@ -2556,12 +2622,12 @@ class DEVICE():
         self.mlp.append(mlpNew)
         
         
-        if self.netconf_connected == False:
+        if self.agt.netconf.connected() == False:
             (rc , info) = self.agt.netconf.connect()
             if rc != 0:
                 print(info)
                 return (-1 , 'connect not exist')
-            self.netconf_connected = True
+
             
         (rc , info) = self.agt.netconf.config(mlpNew.getConfig())
         if rc != 0:
@@ -2583,12 +2649,12 @@ class DEVICE():
         if targetMlp is None:
             return (-1 , 'mlp not found')
 
-        if self.netconf_connected == False:
+        if self.agt.netconf.connected() == False:
             (rc , info) = self.agt.netconf.connect()
             if rc != 0:
                 print(info)
                 return (-1 , 'connect not exist')
-            self.netconf_connected = True
+
             
         (rc , info) = self.agt.netconf.config( targetMlp.delete())
         if rc != 0:
@@ -2676,12 +2742,11 @@ class DEVICE():
         else :
             return (-1,'lsp not found')
             
-        if self.netconf_connected == False:
+        if self.agt.netconf.connected() == False:
             (rc , info) = self.agt.netconf.connect()
             if rc != 0:
                 print(info)
                 return (-1,'no connect')
-            self.netconf_connected = True
         
         (rc , info) = self.agt.netconf.config( meg.delete())
         if rc != 0:
@@ -2721,12 +2786,11 @@ class DEVICE():
         else :
             return (-1,'pw not found')
             
-        if self.netconf_connected == False:
+        if self.agt.netconf.connected() == False:
             (rc , info) = self.agt.netconf.connect()
             if rc != 0:
                 print(info)
                 return (-1,'no connect')
-            self.netconf_connected = True
         
         (rc , info) = self.agt.netconf.config(meg.delete())
         if rc != 0:
@@ -3142,22 +3206,22 @@ class Basic(advanced_tests.AdvancedDataPlane):
         if self.pe1 != None:
             
             (rc,info) = self.pe1.deletePw(pwIndex = 1)
-            print('deletePw:'+ str(rc) + '(' + info + ')')
+            print(('%-24s: ' % 'deletePw') +  info  + '('  +  str(rc)  + ')')
 
             time.sleep(1)
             
             (rc,info) = self.pe1.deletePw(pwIndex = 2)
-            print('deletePw:'+ str(rc) + '(' + info + ')')
+            print(('%-24s: ' % 'deletePw') +  info  + '('  +  str(rc)  + ')')
 
             time.sleep(1)
             
             (rc,info) = self.pe1.deleteTunnel(tunnelIndex = 1)
-            print('deleteTunnel:'+ str(rc) + '(' + info + ')')
+            print(('%-24s: ' % 'deleteTunnel') +  info  + '('  +  str(rc)  + ')')
 
             time.sleep(1)
             
             (rc,info) = self.pe1.deleteLsp(lspIndex = 1)
-            print('deleteLsp:'+ str(rc) + '(' + info + ')')
+            print(('%-24s: ' % 'deleteLsp') +  info  + '('  +  str(rc)  + ')')
             
             time.sleep(1)
 
@@ -3165,22 +3229,22 @@ class Basic(advanced_tests.AdvancedDataPlane):
         if self.pe2 != None:
           
             (rc,info) = self.pe2.deletePw(pwIndex = 1)
-            print('deletePw:'+ str(rc) + '(' + info + ')')
+            print(('%-24s: ' % 'deletePw') +  info  + '('  +  str(rc)  + ')')
 
             time.sleep(1)
 
             (rc,info) = self.pe2.deletePw(pwIndex = 2)
-            print('deletePw:'+ str(rc) + '(' + info + ')')
+            print(('%-24s: ' % 'deletePw') +  info  + '('  +  str(rc)  + ')')
 
             time.sleep(1)
 
             (rc,info) = self.pe2.deleteTunnel(tunnelIndex = 1)
-            print('deleteTunnel:'+ str(rc) + '(' + info + ')')
+            print(('%-24s: ' % 'deleteTunnel') +  info  + '('  +  str(rc)  + ')')
 
             time.sleep(1)
             
             (rc,info) = self.pe2.deleteLsp(lspIndex = 1)
-            print('deleteLsp:'+ str(rc) + '(' + info + ')')
+            print(('%-24s: ' % 'deleteLsp') +  info  + '('  +  str(rc)  + ')')
 
 
 class BasicStats(advanced_tests.AdvancedDataPlane):
@@ -3304,22 +3368,22 @@ class BasicStats(advanced_tests.AdvancedDataPlane):
         if self.pe1 != None:
             
             (rc,info) = self.pe1.deletePw(pwIndex = 1)
-            print('deletePw:'+ str(rc) + '(' + info + ')')
+            print(('%-24s: ' % 'deletePw') +  info  + '('  +  str(rc)  + ')')
 
             time.sleep(1)
             
             (rc,info) = self.pe1.deletePw(pwIndex = 2)
-            print('deletePw:'+ str(rc) + '(' + info + ')')
+            print(('%-24s: ' % 'deletePw') +  info  + '('  +  str(rc)  + ')')
 
             time.sleep(1)
             
             (rc,info) = self.pe1.deleteTunnel(tunnelIndex = 1)
-            print('deleteTunnel:'+ str(rc) + '(' + info + ')')
+            print(('%-24s: ' % 'deleteTunnel') +  info  + '('  +  str(rc)  + ')')
 
             time.sleep(1)
             
             (rc,info) = self.pe1.deleteLsp(lspIndex = 1)
-            print('deleteLsp:'+ str(rc) + '(' + info + ')')
+            print(('%-24s: ' % 'deleteLsp') +  info  + '('  +  str(rc)  + ')')
             
             time.sleep(1)
 
@@ -3327,22 +3391,22 @@ class BasicStats(advanced_tests.AdvancedDataPlane):
         if self.pe2 != None:
           
             (rc,info) = self.pe2.deletePw(pwIndex = 1)
-            print('deletePw:'+ str(rc) + '(' + info + ')')
+            print(('%-24s: ' % 'deletePw') +  info  + '('  +  str(rc)  + ')')
 
             time.sleep(1)
 
             (rc,info) = self.pe2.deletePw(pwIndex = 2)
-            print('deletePw:'+ str(rc) + '(' + info + ')')
+            print(('%-24s: ' % 'deletePw') +  info  + '('  +  str(rc)  + ')')
 
             time.sleep(1)
 
             (rc,info) = self.pe2.deleteTunnel(tunnelIndex = 1)
-            print('deleteTunnel:'+ str(rc) + '(' + info + ')')
+            print(('%-24s: ' % 'deleteTunnel') +  info  + '('  +  str(rc)  + ')')
 
             time.sleep(1)
             
             (rc,info) = self.pe2.deleteLsp(lspIndex = 1)
-            print('deleteLsp:'+ str(rc) + '(' + info + ')')
+            print(('%-24s: ' % 'deleteLsp') +  info  + '('  +  str(rc)  + ')')
 
 
 class LspProt(advanced_tests.AdvancedDataPlane):
@@ -3363,8 +3427,8 @@ class LspProt(advanced_tests.AdvancedDataPlane):
         self.deviceIsOnline = 0
         self.waitDeviceOnline = 3000 # wait timeout = 20s
         while self.deviceIsOnline < 2 and self.waitDeviceOnline > 0:
-            for agt in self.controller.device_agents:
-                #print(agt.dpid)
+            for id,agt in self.controller.device_agents:
+                print(id,agt.dpid)
                 if self.pe1 == None and agt.dpid == self.pe1Config['DPID']: 
                     self.pe1 = DEVICE(agt = agt)
                     self.deviceIsOnline += 1
@@ -3386,6 +3450,13 @@ class LspProt(advanced_tests.AdvancedDataPlane):
                 self.addG8131Mlp()
             elif cmd == 'basic':
                 self.addBasicVpws()
+            elif cmd == 'update':
+                self.updateMepId()
+            elif cmd == 'restore':
+                self.restoreMepId()                
+            elif cmd == 'all':
+                self.addBasicVpws()
+                self.addG8131Mlp()  
             elif cmd == 'del':
                 self.deleteVpws()
             elif cmd == 'exit':
@@ -3396,18 +3467,32 @@ class LspProt(advanced_tests.AdvancedDataPlane):
 
     def addBasicVpws(self):
         uniVlan = [10]
-        
-        uniPort = 3
-        nniPort_w = 4
-        nniPort_p = 5
+        try:
+            if len(self.pe1Config['ELECTRIC_PORTS']) != 0: 
+                pe1UniPort = self.pe1Config['ELECTRIC_PORTS'][0]
 
-        pe2UniPort = 3 
-        pe2NniPort_w = 4
-        pe2NniPort_p = 5
+            if len(self.pe1Config['OPTICAL_PORTS']) != 0:
+                pe1NniPort_w = self.pe1Config['OPTICAL_PORTS'][0]
+                pe1NniPort_p = self.pe1Config['OPTICAL_PORTS'][1]               
+
+
+            if len(self.pe2Config['ELECTRIC_PORTS']) != 0: 
+                pe2UniPort = self.pe2Config['ELECTRIC_PORTS'][0]
+            elif len(self.pe2Config['OPTICAL_PORTS']) != 0:
+                pe2UniPort = self.pe2Config['OPTICAL_PORTS'][12]
+
+            if len(self.pe1Config['OPTICAL_PORTS']) != 0:
+                pe2NniPort_w = self.pe2Config['OPTICAL_PORTS'][9]
+                pe2NniPort_p = self.pe2Config['OPTICAL_PORTS'][11]  
+                
+        except:
+                raise ("no ports found")
+                
+
         
         nniVlan = 100
-        pe1PortMac_w = self.pe1.getPortMac(nniPort_w) 
-        pe1PortMac_p = self.pe1.getPortMac(nniPort_p)
+        pe1PortMac_w = self.pe1.getPortMac(pe1NniPort_w) 
+        pe1PortMac_p = self.pe1.getPortMac(pe1NniPort_p)
         
         if self.pe2 == None:
             pe2PortMac = [0x0e,0x5e,0x05,0x12,0xff,0xa0]
@@ -3420,14 +3505,14 @@ class LspProt(advanced_tests.AdvancedDataPlane):
             '''
             config self.pe1
             '''
-            lsp_w = self.pe1.addLsp(lspIndex = 1, inLabel = 3000,outLabel = 4000,nniPort = nniPort_w,nniVlan = nniVlan,\
+            lsp_w = self.pe1.addLsp(lspIndex = 1, inLabel = 3000,outLabel = 4000,nniPort = pe1NniPort_w,nniVlan = nniVlan,\
                 dstMac = pe2PortMac_w)
-            lsp_p = self.pe1.addLsp(lspIndex = 2, inLabel = 3001,outLabel = 4001,nniPort = nniPort_p,nniVlan = nniVlan,\
+            lsp_p = self.pe1.addLsp(lspIndex = 2, inLabel = 3001,outLabel = 4001,nniPort = pe1NniPort_p,nniVlan = nniVlan,\
                 dstMac = pe2PortMac_p)
                 
             tunnel = self.pe1.addTunnel(tunnelIndex = 1, lsp_list = [lsp_w,lsp_p], protMode = ofdpa.OFDPA_PROT_MODE_ENABLE)
             
-            pw = self.pe1.addPw(pwIndex = 1,inLabel = 2000 ,outLabel = 2500,uniPort = uniPort, uniVlan = uniVlan, tunnel = tunnel)
+            pw = self.pe1.addPw(pwIndex = 1,inLabel = 2000 ,outLabel = 2500,uniPort = pe1UniPort, uniVlan = uniVlan, tunnel = tunnel)
             
             
             meg_w = netconf.MEG(megIndex = 1,megName ='lspmeg-w' , lmepid = 10 ,rmepid = 20 )
@@ -3441,6 +3526,561 @@ class LspProt(advanced_tests.AdvancedDataPlane):
             self.assertEqual(self.pe1.apply_status(), 0,
              'response status != expect status 0')
         
+        self.pe2Sel = 1
+        if self.pe2 != None and self.pe2Sel == 1:
+            '''
+            config pe2
+            ''' 
+            lsp_w = self.pe2.addLsp(lspIndex = 1, inLabel = 4000,outLabel = 3000,nniPort = pe2NniPort_w,
+                nniVlan = nniVlan,dstMac = pe1PortMac_w)
+            lsp_p = self.pe2.addLsp(lspIndex = 2, inLabel = 4001,outLabel = 3001,nniPort = pe2NniPort_p,
+                nniVlan = nniVlan,dstMac = pe1PortMac_p)
+
+                
+            tunnel = self.pe2.addTunnel(tunnelIndex = 1, lsp_list = [lsp_w,lsp_p], protMode = ofdpa.OFDPA_PROT_MODE_ENABLE)
+            uniVlan = [10]
+            pw = self.pe2.addPw(pwIndex = 1,inLabel = 2500 ,outLabel = 2000,uniPort = pe2UniPort, uniVlan = uniVlan, tunnel =   tunnel)
+            
+            
+            meg_w = netconf.MEG(megIndex = 1,megName ='lspmeg-w' , lmepid = 20 ,rmepid = 10 )
+            self.pe2.addOam2Lsp(lsp = lsp_w, meg = meg_w)
+     
+            meg_p = netconf.MEG(megIndex = 2,megName ='lspmeg-p' , lmepid = 40 ,rmepid = 30 )
+            self.pe2.addOam2Lsp(lsp = lsp_p, meg = meg_p)
+            
+            
+            self.assertEqual(self.pe2.apply_status(), 0,
+                     'response status != expect status 0')
+      
+      
+    def updateMepId(self):
+        self.pe1Sel = 0
+        if self.pe1 != None and self.pe1Sel == 1:
+            '''
+            config self.pe1
+            '''
+            meg_new = netconf.MEG(megIndex = 1,megName ='lspmeg-w' , lmepid = 50 ,rmepid = 20 )
+            self.pe1.updateLspOam(meg_new, 1)
+        self.pe2Sel = 1
+        if self.pe2 != None and self.pe2Sel == 1:
+            '''
+            config self.pe2
+            '''
+            meg_new = netconf.MEG(megIndex = 2,megName ='lspmeg-p' , lmepid = 60 ,rmepid = 30 )
+            self.pe2.updateLspOam(meg_new, 2)            
+            
+     
+    def restoreMepId(self):
+        self.pe1Sel = 0
+        if self.pe1 != None and self.pe1Sel == 1:
+            '''
+            config self.pe1
+            '''
+          
+            meg_new = netconf.MEG(megIndex = 1,megName ='lspmeg-w' , lmepid = 10 ,rmepid = 20 )
+            self.pe1.updateLspOam(meg_new, 1)
+        self.pe2Sel = 1
+        if self.pe2 != None and self.pe2Sel == 1:
+            '''
+            config self.pe2
+            '''
+            meg_new = netconf.MEG(megIndex = 2,megName ='lspmeg-p' , lmepid = 40 ,rmepid = 30 )
+            self.pe2.updateLspOam(meg_new, 2)   
+                 
+                 
+    def addG8131Mlp(self): 
+        if self.pe1 != None and self.pe1Sel == 1:
+            (rc,info) = self.pe1.addMlp(mlpIndex = 1,mlpName = 'lsp-aps1',target = 1)
+            print(('%-24s: ' % 'addG8131Mlp')+  info  + '('  +  str(rc)  + ')')
+        if self.pe2 != None and self.pe2Sel == 1:
+            (rc,info) = self.pe2.addMlp(mlpIndex = 1,mlpName = 'lsp-aps1',target = 1)
+            print(('%-24s: ' % 'addG8131Mlp')+  info  + '('  +  str(rc)  + ')')
+
+
+
+    def deleteVpws(self):
+        if self.pe1 != None and self.pe1Sel == 1:
+            (rc,info) = self.pe1.deleteMlp(mlpIndex = 1)
+            print(('%-24s: ' % 'deleteMlp')+  info  + '('  +  str(rc)  + ')')
+            
+            time.sleep(1)
+
+            (rc,info)  = self.pe1.removeOamFromLsp(lspIndex = 1)
+            print(('%-24s: ' % 'removeOamFromLsp')+  info  + '('  +  str(rc)  + ')')
+            (rc,info)  = self.pe1.removeOamFromLsp(lspIndex = 2)
+            print(('%-24s: ' % 'removeOamFromLsp')+  info  + '('  +  str(rc)  + ')')
+
+            
+            time.sleep(1)
+            
+            (rc,info) = self.pe1.deletePw(pwIndex = 1)
+            print(('%-24s: ' % 'deletePw')+  info  + '('  +  str(rc)  + ')')
+
+            time.sleep(1)
+
+            (rc,info) = self.pe1.deleteTunnel(tunnelIndex = 1)
+            print(('%-24s: ' % 'deleteTunnel')+  info  + '('  +  str(rc)  + ')')
+
+            time.sleep(1)
+            
+            (rc,info) = self.pe1.deleteLsp(lspIndex = 1)
+            print(('%-24s: ' % 'deleteLsp')+  info  + '('  +  str(rc)  + ')')
+            
+            time.sleep(1)
+            
+            (rc,info) = self.pe1.deleteLsp(lspIndex = 2)
+            print(('%-24s: ' % 'deleteLsp')+  info  + '('  +  str(rc)  + ')')
+            
+
+        
+        if self.pe2 != None and self.pe2Sel == 1:
+            (rc,info) = self.pe2.deleteMlp(mlpIndex = 1)
+            print(('%-24s: ' % 'deleteMlp')+  info  + '('  +  str(rc)  + ')')
+            
+            time.sleep(1)
+
+            (rc,info)  = self.pe2.removeOamFromLsp(lspIndex = 1)
+            print(('%-24s: ' % 'removeOamFromLsp')+  info  + '('  +  str(rc)  + ')')
+            (rc,info)  = self.pe2.removeOamFromLsp(lspIndex = 2)
+            print(('%-24s: ' % 'removeOamFromLsp')+  info  + '('  +  str(rc)  + ')')
+
+            
+            time.sleep(1)
+            
+            (rc,info) = self.pe2.deletePw(pwIndex = 1)
+            print(('%-24s: ' % 'deletePw')+  info  + '('  +  str(rc)  + ')')
+
+            time.sleep(1)
+
+            (rc,info) = self.pe2.deleteTunnel(tunnelIndex = 1)
+            print(('%-24s: ' % 'deleteTunnel')+  info  + '('  +  str(rc)  + ')')
+
+            time.sleep(1)
+            
+            (rc,info) = self.pe2.deleteLsp(lspIndex = 1)
+            print(('%-24s: ' % 'deleteLsp')+  info  + '('  +  str(rc)  + ')')
+            
+            time.sleep(1)
+            
+            (rc,info) = self.pe2.deleteLsp(lspIndex = 2)
+            print(('%-24s: ' % 'deleteLsp')+  info  + '('  +  str(rc)  + ')')
+            
+
+class LspProtRcDC(advanced_tests.AdvancedDataPlane):
+    """
+    vpws test case for lsp  permanent protection 
+    """      
+
+    def runTest(self):
+        self.pe1 = None
+        self.pe2 = None 
+        
+        self.pe1Config = config["device_map"]["pe1"]
+        self.pe2Config = config["device_map"]["pe2"]
+        print("\r\n")
+        print(hex(self.pe1Config['DPID']))
+        print(hex(self.pe2Config['DPID']))
+        
+        self.deviceIsOnline = 0
+        self.waitDeviceOnline = 3000 # wait timeout = 20s
+        while self.deviceIsOnline < 2 and self.waitDeviceOnline > 0:
+            for id,agt in self.controller.device_agents:
+                print(id,agt.dpid)
+                if self.pe1 == None and agt.dpid == self.pe1Config['DPID']: 
+                    self.pe1 = DEVICE(agt = agt)
+                    self.deviceIsOnline += 1
+                elif self.pe2 == None and agt.dpid == self.pe2Config['DPID']:
+                    self.pe2 = DEVICE(agt = agt) 
+                    self.deviceIsOnline += 1                    
+            self.waitDeviceOnline -= 1
+            print('.')
+            time.sleep(1) # sleep 1s
+        self.assertEquals(self.deviceIsOnline, 2,'no enough device is online')
+
+
+
+
+        while True:
+            cmd = raw_input('cmd: ')
+            #print(cmd)
+            if cmd == 'addmlp':
+                self.addG8131Mlp()
+            elif cmd == 'basic':
+                self.addBasicVpws()
+            elif cmd == 'update':
+                self.updateMepId()
+            elif cmd == 'restore':
+                self.restoreMepId()                
+            elif cmd == 'all':
+                self.addBasicVpws()
+ 
+            elif cmd == 'del':
+                self.deleteVpws()
+            elif cmd == 'exit':
+                break 
+                
+                              
+
+
+    def addBasicVpws(self):
+        uniVlan = [10]
+        try:
+            if len(self.pe1Config['ELECTRIC_PORTS']) != 0: 
+                pe1UniPort = self.pe1Config['ELECTRIC_PORTS'][0]
+
+            if len(self.pe1Config['OPTICAL_PORTS']) != 0:
+                pe1NniPort_w = self.pe1Config['OPTICAL_PORTS'][0]
+                pe1NniPort_p = self.pe1Config['OPTICAL_PORTS'][1]               
+
+
+            if len(self.pe2Config['ELECTRIC_PORTS']) != 0: 
+                pe2UniPort = self.pe2Config['ELECTRIC_PORTS'][0]
+            elif len(self.pe2Config['OPTICAL_PORTS']) != 0:
+                pe2UniPort = self.pe2Config['OPTICAL_PORTS'][12]
+
+            if len(self.pe1Config['OPTICAL_PORTS']) != 0:
+                pe2NniPort_w = self.pe2Config['OPTICAL_PORTS'][9]
+                pe2NniPort_p = self.pe2Config['OPTICAL_PORTS'][11]  
+                
+        except:
+                raise ("no ports found")
+                
+
+        
+        nniVlan = 100
+        pe1PortMac_w = self.pe1.getPortMac(pe1NniPort_w) 
+        pe1PortMac_p = self.pe1.getPortMac(pe1NniPort_p)
+        
+        if self.pe2 == None:
+            pe2PortMac = [0x0e,0x5e,0x05,0x12,0xff,0xa0]
+        else:
+            pe2PortMac_w = self.pe2.getPortMac(pe2NniPort_w)  
+            pe2PortMac_p = self.pe2.getPortMac(pe2NniPort_p)  
+
+        self.pe1Sel = 1
+        if self.pe1 != None and self.pe1Sel == 1:
+            '''
+            config self.pe1
+            '''
+            lsp_w = self.pe1.addLsp(lspIndex = 1, inLabel = 3000,outLabel = 4000,nniPort = pe1NniPort_w,nniVlan = nniVlan,\
+                dstMac = pe2PortMac_w)
+            lsp_p = self.pe1.addLsp(lspIndex = 2, inLabel = 3001,outLabel = 4001,nniPort = pe1NniPort_p,nniVlan = nniVlan,\
+                dstMac = pe2PortMac_p)
+                
+            tunnel = self.pe1.addTunnel(tunnelIndex = 1, lsp_list = [lsp_w,lsp_p], protMode = ofdpa.OFDPA_PROT_MODE_ENABLE)
+            
+            meg_w = netconf.MEG(megIndex = 1,megName ='lspmeg-w' , lmepid = 10 ,rmepid = 20 )
+            self.pe1.addOam2Lsp(lsp = lsp_w, meg = meg_w)
+     
+            meg_p = netconf.MEG(megIndex = 2,megName ='lspmeg-p' , lmepid = 30 ,rmepid = 40 )
+            self.pe1.addOam2Lsp(lsp = lsp_p, meg = meg_p)     
+            
+            (rc,info) = self.pe1.addMlp(mlpIndex = 1,mlpName = 'lsp-aps1',target = 1)
+            print(('%-24s: ' % 'addG8131Mlp')+  info  + '('  +  str(rc)  + ')')            
+                   
+            pw = self.pe1.addPw(pwIndex = 1,inLabel = 2000 ,outLabel = 2500,uniPort = pe1UniPort, uniVlan = uniVlan, tunnel = tunnel)
+
+            self.assertEqual(self.pe1.apply_status(), 0,
+             'response status != expect status 0')
+        
+        self.pe2Sel = 1
+        if self.pe2 != None and self.pe2Sel == 1:
+            '''
+            config pe2
+            ''' 
+            lsp_w = self.pe2.addLsp(lspIndex = 1, inLabel = 4000,outLabel = 3000,nniPort = pe2NniPort_w,
+                nniVlan = nniVlan,dstMac = pe1PortMac_w)
+            lsp_p = self.pe2.addLsp(lspIndex = 2, inLabel = 4001,outLabel = 3001,nniPort = pe2NniPort_p,
+                nniVlan = nniVlan,dstMac = pe1PortMac_p)
+
+                
+            tunnel = self.pe2.addTunnel(tunnelIndex = 1, lsp_list = [lsp_w,lsp_p], protMode = ofdpa.OFDPA_PROT_MODE_ENABLE)
+            
+            meg_w = netconf.MEG(megIndex = 1,megName ='lspmeg-w' , lmepid = 20 ,rmepid = 10 )
+            self.pe2.addOam2Lsp(lsp = lsp_w, meg = meg_w)
+     
+            meg_p = netconf.MEG(megIndex = 2,megName ='lspmeg-p' , lmepid = 40 ,rmepid = 30 )
+            self.pe2.addOam2Lsp(lsp = lsp_p, meg = meg_p)
+            
+            (rc,info) = self.pe2.addMlp(mlpIndex = 1,mlpName = 'lsp-aps1',target = 1)
+            print(('%-24s: ' % 'addG8131Mlp')+  info  + '('  +  str(rc)  + ')')
+                        
+            
+            uniVlan = [10]
+            pw = self.pe2.addPw(pwIndex = 1,inLabel = 2500 ,outLabel = 2000,uniPort = pe2UniPort, uniVlan = uniVlan, tunnel =   tunnel)
+    
+
+            self.assertEqual(self.pe2.apply_status(), 0,
+                     'response status != expect status 0')
+      
+      
+    def updateMepId(self):
+        self.pe1Sel = 0
+        if self.pe1 != None and self.pe1Sel == 1:
+            '''
+            config self.pe1
+            '''
+            meg_new = netconf.MEG(megIndex = 1,megName ='lspmeg-w' , lmepid = 50 ,rmepid = 20 )
+            self.pe1.updateLspOam(meg_new, 1)
+        self.pe2Sel = 1
+        if self.pe2 != None and self.pe2Sel == 1:
+            '''
+            config self.pe2
+            '''
+            meg_new = netconf.MEG(megIndex = 2,megName ='lspmeg-p' , lmepid = 60 ,rmepid = 30 )
+            self.pe2.updateLspOam(meg_new, 2)            
+            
+     
+    def restoreMepId(self):
+        self.pe1Sel = 0
+        if self.pe1 != None and self.pe1Sel == 1:
+            '''
+            config self.pe1
+            '''
+          
+            meg_new = netconf.MEG(megIndex = 1,megName ='lspmeg-w' , lmepid = 10 ,rmepid = 20 )
+            self.pe1.updateLspOam(meg_new, 1)
+        self.pe2Sel = 1
+        if self.pe2 != None and self.pe2Sel == 1:
+            '''
+            config self.pe2
+            '''
+            meg_new = netconf.MEG(megIndex = 2,megName ='lspmeg-p' , lmepid = 40 ,rmepid = 30 )
+            self.pe2.updateLspOam(meg_new, 2)   
+                 
+                 
+    def addG8131Mlp(self): 
+        if self.pe1 != None and self.pe1Sel == 1:
+            (rc,info) = self.pe1.addMlp(mlpIndex = 1,mlpName = 'lsp-aps1',target = 1)
+            print(('%-24s: ' % 'addG8131Mlp')+  info  + '('  +  str(rc)  + ')')
+        if self.pe2 != None and self.pe2Sel == 1:
+            (rc,info) = self.pe2.addMlp(mlpIndex = 1,mlpName = 'lsp-aps1',target = 1)
+            print(('%-24s: ' % 'addG8131Mlp')+  info  + '('  +  str(rc)  + ')')
+
+
+
+    def deleteVpws(self):
+        if self.pe1 != None and self.pe1Sel == 1:
+            (rc,info) = self.pe1.deleteMlp(mlpIndex = 1)
+            print(('%-24s: ' % 'deleteMlp')+  info  + '('  +  str(rc)  + ')')
+            
+            time.sleep(1)
+
+            (rc,info)  = self.pe1.removeOamFromLsp(lspIndex = 1)
+            print(('%-24s: ' % 'removeOamFromLsp')+  info  + '('  +  str(rc)  + ')')
+            (rc,info)  = self.pe1.removeOamFromLsp(lspIndex = 2)
+            print(('%-24s: ' % 'removeOamFromLsp')+  info  + '('  +  str(rc)  + ')')
+
+            
+            time.sleep(1)
+            
+            (rc,info) = self.pe1.deletePw(pwIndex = 1)
+            print(('%-24s: ' % 'deletePw')+  info  + '('  +  str(rc)  + ')')
+
+            time.sleep(1)
+
+            (rc,info) = self.pe1.deleteTunnel(tunnelIndex = 1)
+            print(('%-24s: ' % 'deleteTunnel')+  info  + '('  +  str(rc)  + ')')
+
+            time.sleep(1)
+            
+            (rc,info) = self.pe1.deleteLsp(lspIndex = 1)
+            print(('%-24s: ' % 'deleteLsp')+  info  + '('  +  str(rc)  + ')')
+            
+            time.sleep(1)
+            
+            (rc,info) = self.pe1.deleteLsp(lspIndex = 2)
+            print(('%-24s: ' % 'deleteLsp')+  info  + '('  +  str(rc)  + ')')
+            
+
+        
+        if self.pe2 != None and self.pe2Sel == 1:
+            (rc,info) = self.pe2.deleteMlp(mlpIndex = 1)
+            print(('%-24s: ' % 'deleteMlp')+  info  + '('  +  str(rc)  + ')')
+            
+            time.sleep(1)
+
+            (rc,info)  = self.pe2.removeOamFromLsp(lspIndex = 1)
+            print(('%-24s: ' % 'removeOamFromLsp')+  info  + '('  +  str(rc)  + ')')
+            (rc,info)  = self.pe2.removeOamFromLsp(lspIndex = 2)
+            print(('%-24s: ' % 'removeOamFromLsp')+  info  + '('  +  str(rc)  + ')')
+
+            
+            time.sleep(1)
+            
+            (rc,info) = self.pe2.deletePw(pwIndex = 1)
+            print(('%-24s: ' % 'deletePw')+  info  + '('  +  str(rc)  + ')')
+
+            time.sleep(1)
+
+            (rc,info) = self.pe2.deleteTunnel(tunnelIndex = 1)
+            print(('%-24s: ' % 'deleteTunnel')+  info  + '('  +  str(rc)  + ')')
+
+            time.sleep(1)
+            
+            (rc,info) = self.pe2.deleteLsp(lspIndex = 1)
+            print(('%-24s: ' % 'deleteLsp')+  info  + '('  +  str(rc)  + ')')
+            
+            time.sleep(1)
+            
+            (rc,info) = self.pe2.deleteLsp(lspIndex = 2)
+            print(('%-24s: ' % 'deleteLsp')+  info  + '('  +  str(rc)  + ')')
+            
+
+
+class LspProt_Scenario_2(advanced_tests.AdvancedDataPlane):
+    """
+    vpws test case for lsp  permanent protection 
+    """      
+
+    def runTest(self):
+        self.pe1 = None
+        self.pe2 = None 
+        self.p1 = None 
+        
+        self.pe1Config = config["device_map"]["pe1"]
+        self.pe2Config = config["device_map"]["pe2"]
+        self.p1Config = config["device_map"]["p1"]
+        print("\r\n")
+        print(hex(self.pe1Config['DPID']))
+        print(hex(self.pe2Config['DPID']))
+        print(hex(self.p1Config['DPID']))     
+           
+        self.deviceIsOnline = 0
+        self.waitDeviceOnline = 3000 # wait timeout = 20s
+        while self.deviceIsOnline < 3 and self.waitDeviceOnline > 0:
+            for id,agt in self.controller.device_agents:
+                print(id,hex(agt.dpid))
+                if self.pe1 == None and agt.dpid == self.pe1Config['DPID']: 
+                    self.pe1 = DEVICE(agt = agt)
+                    self.deviceIsOnline += 1
+                elif self.pe2 == None and agt.dpid == self.pe2Config['DPID']:
+                    self.pe2 = DEVICE(agt = agt) 
+                    self.deviceIsOnline += 1                    
+                elif self.p1 == None and agt.dpid == self.p1Config['DPID']:
+                    self.p1 = DEVICE(agt = agt) 
+                    self.deviceIsOnline += 1  
+            self.waitDeviceOnline -= 1
+            print('.')
+            time.sleep(1) # sleep 1s
+        self.assertEquals(self.deviceIsOnline, 3,'no enough device is online')
+
+
+
+
+        while True:
+            cmd = raw_input('cmd: ')
+            #print(cmd)
+            if cmd == 'addmlp':
+                self.addG8131Mlp()
+            elif cmd == 'basic':
+                self.addBasicVpws()
+            elif cmd == 'update':
+                self.updateMepId()
+            elif cmd == 'restore':
+                self.restoreMepId()                
+            elif cmd == 'del':
+                self.deleteVpws()
+            elif cmd == 'exit':
+                break 
+                
+                              
+
+
+    def addBasicVpws(self):
+        uniVlan = [10]
+        
+        pe1UniPort = 3
+        pe1NniPort_w = 1
+        pe1NniPort_p = 2
+
+        p1UniPort = 13
+        p1NniPort_w = 15
+        p1NniPort_p = 12
+        p1NniPortEast = 10
+        p1NniPortWest = 16
+        p1PortMacEast = self.p1.getPortMac(p1NniPortEast) 
+        p1PortMacWest = self.p1.getPortMac(p1NniPortWest)
+        
+        
+        pe2UniPort = 3 
+        pe2NniPort_w = 4
+        pe2NniPort_p = 5
+        
+        nniVlan = 100
+        pe1PortMac_w = self.pe1.getPortMac(pe1NniPort_w) 
+        pe1PortMac_p = self.pe1.getPortMac(pe1NniPort_p)
+        
+        p1PortMac_w = self.p1.getPortMac(p1NniPort_w) 
+        p1PortMac_p = self.p1.getPortMac(p1NniPort_p)
+        
+        if self.pe2 == None:
+            pe2PortMac = [0x0e,0x5e,0x05,0x12,0xff,0xa0]
+        else:
+            pe2PortMac_w = self.pe2.getPortMac(pe2NniPort_w)  
+            pe2PortMac_p = self.pe2.getPortMac(pe2NniPort_p)  
+
+        self.pe1Sel = 1
+        if self.pe1 != None and self.pe1Sel == 1:
+            '''
+            config self.pe1
+            '''
+            lsp_w = self.pe1.addLsp(lspIndex = 1, inLabel = 6000,outLabel = 4000,nniPort = pe1NniPort_w,nniVlan = nniVlan,\
+                dstMac = p1PortMacEast)
+            lsp_p = self.pe1.addLsp(lspIndex = 2, inLabel = 3001,outLabel = 4001,nniPort = pe1NniPort_p,nniVlan = nniVlan,\
+                dstMac = p1PortMac_p)
+                
+            tunnel = self.pe1.addTunnel(tunnelIndex = 1, lsp_list = [lsp_w,lsp_p], protMode = ofdpa.OFDPA_PROT_MODE_ENABLE)
+            
+            pw = self.pe1.addPw(pwIndex = 1,inLabel = 2000 ,outLabel = 2500,uniPort = pe1UniPort, uniVlan = uniVlan, tunnel = tunnel)
+            
+            
+            meg_w = netconf.MEG(megIndex = 1,megName ='lspmeg-w' , lmepid = 10 ,rmepid = 20 )
+            self.pe1.addOam2Lsp(lsp = lsp_w, meg = meg_w)
+     
+            meg_p = netconf.MEG(megIndex = 2,megName ='lspmeg-p' , lmepid = 30 ,rmepid = 40 )
+            self.pe1.addOam2Lsp(lsp = lsp_p, meg = meg_p)
+            
+
+            
+            self.assertEqual(self.pe1.apply_status(), 0,
+             'response status != expect status 0')
+        
+        self.p1Sel = 1
+        if self.p1 != None and self.p1Sel == 1:
+            '''
+            config swap
+            ''' 
+            swap_E2W = self.p1.addSwap(swapIndex = 1, inLabel = 4000, outLabel = 5000, nniPort_in = p1NniPortEast, 
+                                       nniPort_out = p1NniPortWest, dstMac = p1PortMac_w, nniVlan_in = nniVlan, nniVlan_out = nniVlan)
+
+            swap_W2E = self.p1.addSwap(swapIndex = 2, inLabel = 3000, outLabel = 6000, nniPort_in = p1NniPortWest, 
+                                       nniPort_out = p1NniPortEast, dstMac = pe1PortMac_w, nniVlan_in = nniVlan, nniVlan_out = nniVlan)
+       
+            '''
+            config p1
+            ''' 
+            lsp_w = self.p1.addLsp(lspIndex = 1, inLabel = 5000,outLabel = 3000,nniPort = p1NniPort_w,
+                nniVlan = nniVlan,dstMac = p1PortMacWest)
+            lsp_p = self.p1.addLsp(lspIndex = 2, inLabel = 4001,outLabel = 3001,nniPort = p1NniPort_p,
+                nniVlan = nniVlan,dstMac = pe1PortMac_p)
+
+                
+            tunnel = self.p1.addTunnel(tunnelIndex = 1, lsp_list = [lsp_w,lsp_p], protMode = ofdpa.OFDPA_PROT_MODE_ENABLE)
+            uniVlan = [10]
+            pw = self.p1.addPw(pwIndex = 1,inLabel = 2500 ,outLabel = 2000,uniPort = p1UniPort, uniVlan = uniVlan, tunnel =   tunnel)
+            
+            
+            meg_w = netconf.MEG(megIndex = 1,megName ='lspmeg-w' , lmepid = 20 ,rmepid = 10 )
+            self.p1.addOam2Lsp(lsp = lsp_w, meg = meg_w)
+     
+            meg_p = netconf.MEG(megIndex = 2,megName ='lspmeg-p' , lmepid = 40 ,rmepid = 30 )
+            self.p1.addOam2Lsp(lsp = lsp_p, meg = meg_p)
+            
+            
+            self.assertEqual(self.p1.apply_status(), 0,
+                     'response status != expect status 0')
+      
         self.pe2Sel = 0
         if self.pe2 != None and self.pe2Sel == 1:
             '''
@@ -3466,84 +4106,112 @@ class LspProt(advanced_tests.AdvancedDataPlane):
             
             self.assertEqual(self.pe2.apply_status(), 0,
                      'response status != expect status 0')
+            
+            
+                  
+    def updateMepId(self):
+        self.pe1Sel = 1
+        if self.pe1 != None and self.pe1Sel == 1:
+            '''
+            config self.pe1
+            '''
+            meg_new = netconf.MEG(megIndex = 1,megName ='lspmeg-w' , lmepid = 50 ,rmepid = 20 )
+            self.pe1.updateLspOam(meg_new, 1)
+            
+            
+     
+    def restoreMepId(self):
+        self.pe1Sel = 1
+        if self.pe1 != None and self.pe1Sel == 1:
+            '''
+            config self.pe1
+            '''
+          
+            meg_new = netconf.MEG(megIndex = 1,megName ='lspmeg-w' , lmepid = 10 ,rmepid = 20 )
+            self.pe1.updateLspOam(meg_new, 1)
+   
+                 
                  
     def addG8131Mlp(self): 
         if self.pe1 != None and self.pe1Sel == 1:
             (rc,info) = self.pe1.addMlp(mlpIndex = 1,mlpName = 'lsp-aps1',target = 1)
-            print('addG8131Mlp\t\t:'+ str(rc) + '(' + info + ')')
+            print(('%-24s: ' % 'addG8131Mlp')+  info  + '('  +  str(rc)  + ')')
+        if self.p1 != None and self.p1Sel == 1:
+            (rc,info) = self.p1.addMlp(mlpIndex = 1,mlpName = 'lsp-aps1',target = 1)
+            print(('%-24s: ' % 'addG8131Mlp')+  info  + '('  +  str(rc)  + ')')
         if self.pe2 != None and self.pe2Sel == 1:
             (rc,info) = self.pe2.addMlp(mlpIndex = 1,mlpName = 'lsp-aps1',target = 1)
-            print('addG8131Mlp\t\t:'+ str(rc) + '(' + info + ')')
+            print(('%-24s: ' % 'addG8131Mlp')+  info  + '('  +  str(rc)  + ')')
 
 
 
     def deleteVpws(self):
         if self.pe1 != None and self.pe1Sel == 1:
             (rc,info) = self.pe1.deleteMlp(mlpIndex = 1)
-            print('deleteMlp\t\t:'+ str(rc) + '(' + info + ')')
+            print(('%-24s: ' % 'deleteMlp')+  info  + '('  +  str(rc)  + ')')
             
             time.sleep(1)
 
             (rc,info)  = self.pe1.removeOamFromLsp(lspIndex = 1)
-            print('removeOamFromLsp\t\t:'+ str(rc) + '(' + info + ')')
+            print(('%-24s: ' % 'removeOamFromLsp')+  info  + '('  +  str(rc)  + ')')
             (rc,info)  = self.pe1.removeOamFromLsp(lspIndex = 2)
-            print('removeOamFromLsp\t\t:'+ str(rc) + '(' + info + ')')
+            print(('%-24s: ' % 'removeOamFromLsp')+  info  + '('  +  str(rc)  + ')')
 
             
             time.sleep(1)
             
             (rc,info) = self.pe1.deletePw(pwIndex = 1)
-            print('deletePw\t\t:'+ str(rc) + '(' + info + ')')
+            print(('%-24s: ' % 'deletePw')+  info  + '('  +  str(rc)  + ')')
 
             time.sleep(1)
 
             (rc,info) = self.pe1.deleteTunnel(tunnelIndex = 1)
-            print('deleteTunnel\t\t:'+ str(rc) + '(' + info + ')')
+            print(('%-24s: ' % 'deleteTunnel')+  info  + '('  +  str(rc)  + ')')
 
             time.sleep(1)
             
             (rc,info) = self.pe1.deleteLsp(lspIndex = 1)
-            print('deleteLsp\t\t:'+ str(rc) + '(' + info + ')')
+            print(('%-24s: ' % 'deleteLsp')+  info  + '('  +  str(rc)  + ')')
             
             time.sleep(1)
             
             (rc,info) = self.pe1.deleteLsp(lspIndex = 2)
-            print('deleteLsp\t\t:'+ str(rc) + '(' + info + ')')
+            print(('%-24s: ' % 'deleteLsp')+  info  + '('  +  str(rc)  + ')')
             
 
         
         if self.pe2 != None and self.pe2Sel == 1:
             (rc,info) = self.pe2.deleteMlp(mlpIndex = 1)
-            print('deleteMlp\t\t:'+ str(rc) + '(' + info + ')')
+            print(('%-24s: ' % 'deleteMlp')+  info  + '('  +  str(rc)  + ')')
             
             time.sleep(1)
 
             (rc,info)  = self.pe2.removeOamFromLsp(lspIndex = 1)
-            print('removeOamFromLsp\t\t:'+ str(rc) + '(' + info + ')')
+            print(('%-24s: ' % 'removeOamFromLsp')+  info  + '('  +  str(rc)  + ')')
             (rc,info)  = self.pe2.removeOamFromLsp(lspIndex = 2)
-            print('removeOamFromLsp\t\t:'+ str(rc) + '(' + info + ')')
+            print(('%-24s: ' % 'removeOamFromLsp')+  info  + '('  +  str(rc)  + ')')
 
             
             time.sleep(1)
             
             (rc,info) = self.pe2.deletePw(pwIndex = 1)
-            print('deletePw\t\t:'+ str(rc) + '(' + info + ')')
+            print(('%-24s: ' % 'deletePw')+  info  + '('  +  str(rc)  + ')')
 
             time.sleep(1)
 
             (rc,info) = self.pe2.deleteTunnel(tunnelIndex = 1)
-            print('deleteTunnel\t\t:'+ str(rc) + '(' + info + ')')
+            print(('%-24s: ' % 'deleteTunnel')+  info  + '('  +  str(rc)  + ')')
 
             time.sleep(1)
             
             (rc,info) = self.pe2.deleteLsp(lspIndex = 1)
-            print('deleteLsp\t\t:'+ str(rc) + '(' + info + ')')
+            print(('%-24s: ' % 'deleteLsp')+  info  + '('  +  str(rc)  + ')')
             
             time.sleep(1)
             
             (rc,info) = self.pe2.deleteLsp(lspIndex = 2)
-            print('deleteLsp\t\t:'+ str(rc) + '(' + info + ')')
-            
+            print(('%-24s: ' % 'deleteLsp')+  info  + '('  +  str(rc)  + ')')
+
     
 class ExceptionCcmUnm(advanced_tests.AdvancedDataPlane):
     """
@@ -3670,79 +4338,79 @@ class ExceptionCcmUnm(advanced_tests.AdvancedDataPlane):
     def addG8131Mlp(self): 
         if self.pe1 != None and self.pe1Sel == 1:
             (rc,info) = self.pe1.addMlp(mlpIndex = 1,mlpName = 'lsp-aps1',target = 1)
-            print('addG8131Mlp\t\t:'+ str(rc) + '(' + info + ')')
+            print(('%-24s: ' % 'addG8131Mlp')+  info  + '('  +  str(rc)  + ')')
         if self.pe2 != None and self.pe2Sel == 1:
             (rc,info) = self.pe2.addMlp(mlpIndex = 1,mlpName = 'lsp-aps1',target = 1)
-            print('addG8131Mlp\t\t:'+ str(rc) + '(' + info + ')')
+            print(('%-24s: ' % 'addG8131Mlp')+  info  + '('  +  str(rc)  + ')')
 
 
 
     def deleteVpws(self):
         if self.pe1 != None and self.pe1Sel == 1:
             (rc,info) = self.pe1.deleteMlp(mlpIndex = 1)
-            print('deleteMlp\t\t:'+ str(rc) + '(' + info + ')')
+            print(('%-24s: ' % 'deleteMlp')+  info  + '('  +  str(rc)  + ')')
             
             time.sleep(1)
 
             (rc,info)  = self.pe1.removeOamFromLsp(lspIndex = 1)
-            print('removeOamFromLsp\t\t:'+ str(rc) + '(' + info + ')')
+            print(('%-24s: ' % 'removeOamFromLsp')+  info  + '('  +  str(rc)  + ')')
             (rc,info)  = self.pe1.removeOamFromLsp(lspIndex = 2)
-            print('removeOamFromLsp\t\t:'+ str(rc) + '(' + info + ')')
+            print(('%-24s: ' % 'removeOamFromLsp')+  info  + '('  +  str(rc)  + ')')
 
             
             time.sleep(1)
             
             (rc,info) = self.pe1.deletePw(pwIndex = 1)
-            print('deletePw\t\t:'+ str(rc) + '(' + info + ')')
+            print(('%-24s: ' % 'deletePw')+  info  + '('  +  str(rc)  + ')')
 
             time.sleep(1)
 
             (rc,info) = self.pe1.deleteTunnel(tunnelIndex = 1)
-            print('deleteTunnel\t\t:'+ str(rc) + '(' + info + ')')
+            print(('%-24s: ' % 'deleteTunnel')+  info  + '('  +  str(rc)  + ')')
 
             time.sleep(1)
             
             (rc,info) = self.pe1.deleteLsp(lspIndex = 1)
-            print('deleteLsp\t\t:'+ str(rc) + '(' + info + ')')
+            print(('%-24s: ' % 'deleteLsp')+  info  + '('  +  str(rc)  + ')')
             
             time.sleep(1)
             
             (rc,info) = self.pe1.deleteLsp(lspIndex = 2)
-            print('deleteLsp\t\t:'+ str(rc) + '(' + info + ')')
+            print(('%-24s: ' % 'deleteLsp')+  info  + '('  +  str(rc)  + ')')
             
 
         
         if self.pe2 != None and self.pe2Sel == 1:
             (rc,info) = self.pe2.deleteMlp(mlpIndex = 1)
-            print('deleteMlp\t\t:'+ str(rc) + '(' + info + ')')
+            print(('%-24s: ' % 'deleteMlp')+  info  + '('  +  str(rc)  + ')')
             
             time.sleep(1)
 
             (rc,info)  = self.pe2.removeOamFromLsp(lspIndex = 1)
-            print('removeOamFromLsp\t\t:'+ str(rc) + '(' + info + ')')
+            print(('%-24s: ' % 'removeOamFromLsp')+  info  + '('  +  str(rc)  + ')')
             (rc,info)  = self.pe2.removeOamFromLsp(lspIndex = 2)
-            print('removeOamFromLsp\t\t:'+ str(rc) + '(' + info + ')')
+            print(('%-24s: ' % 'removeOamFromLsp')+  info  + '('  +  str(rc)  + ')')
 
             
             time.sleep(1)
             
             (rc,info) = self.pe2.deletePw(pwIndex = 1)
-            print('deletePw\t\t:'+ str(rc) + '(' + info + ')')
+            print(('%-24s: ' % 'deletePw')+  info  + '('  +  str(rc)  + ')')
 
             time.sleep(1)
 
             (rc,info) = self.pe2.deleteTunnel(tunnelIndex = 1)
-            print('deleteTunnel\t\t:'+ str(rc) + '(' + info + ')')
+            print(('%-24s: ' % 'deleteTunnel')+  info  + '('  +  str(rc)  + ')')
 
             time.sleep(1)
             
             (rc,info) = self.pe2.deleteLsp(lspIndex = 1)
-            print('deleteLsp\t\t:'+ str(rc) + '(' + info + ')')
+            print(('%-24s: ' % 'deleteLsp')+  info  + '('  +  str(rc)  + ')')
             
             time.sleep(1)
             
             (rc,info) = self.pe2.deleteLsp(lspIndex = 2)
-            print('deleteLsp\t\t:'+ str(rc) + '(' + info + ')')    
+            print(('%-24s: ' % 'deleteLsp')+  info  + '('  +  str(rc)  + ')')    
                         
 class QosPCP(advanced_tests.AdvancedProtocol):
     """

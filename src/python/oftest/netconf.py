@@ -149,6 +149,7 @@ class Netconf():
         self.ncPort = port
         self.username = username
         self.password = password
+        self.mng = None
         
     def closeConn(self):
         if self.mng:
@@ -171,6 +172,12 @@ class Netconf():
         
         return (0,'Result OK')
 
+    def connected(self):
+        """Whether currently connected to the NETCONF server."""
+        if self.mng is None:
+            return False
+        else:
+            return self.mng.connected
 
  
 
@@ -212,8 +219,8 @@ class MEG():
     def updateLocalMpId(self,localMpId):
         self.localMpId = localMpId    
     
-    def getConfig(self):
-        self.strConf = CONF_MOD_MEG % ("create",
+    def getConfig(self,opt = "create"):
+        self.strConf = CONF_MOD_MEG % (opt,
                                      str('mpls_meg_'+str(self.megIndex)),
                                      str(self.megIndex),
                                      self.megName,
