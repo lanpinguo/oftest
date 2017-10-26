@@ -1346,6 +1346,50 @@ class sptn(experimenter):
 experimenter.subtypes[4120] = sptn
 
 
+class sptn_push_cw(sptn):
+    type = 65535
+    subtype = 3
+
+    def __init__(self):
+        return
+
+    def pack(self):
+        packed = []
+        packed.append(struct.pack("!H", self.type))
+        packed.append(struct.pack("!H", 0)) # placeholder for len at index 1
+        packed.append(struct.pack("!L", self.experimenter))
+        packed.append(struct.pack("!H", self.subtype))
+        packed.append('\x00' * 6)
+        length = sum([len(x) for x in packed])
+        packed[1] = struct.pack("!H", length)
+        return ''.join(packed)
+
+    @staticmethod
+    def unpack(reader):
+        obj = sptn_act_color_based_ctr()
+        _type = reader.read("!H")[0]
+        assert(_type == 65535)
+        _len = reader.read("!H")[0]
+        orig_reader = reader
+        reader = orig_reader.slice(_len, 4)
+        _experimenter = reader.read("!L")[0]
+        assert(_experimenter == self.experimenter)
+        _subtype = reader.read("!H")[0]
+        assert(_subtype == self.subtype)
+        reader.skip(6)
+       
+        return obj
+
+    def __eq__(self, other):
+        if type(self) != type(other): return False
+        return True
+
+    def pretty_print(self, q):
+        q.text("sptn_push_cw ")
+
+sptn.subtypes[3] = sptn_push_cw
+
+
 class sptn_act_color_based_ctr(sptn):
     type = 65535
     subtype = 20

@@ -642,7 +642,8 @@ class LSP():
             ofp.action.set_field(ofp.oxm.mpls_label(value = 13)),
             ofp.action.set_field(ofp.oxm.mpls_bos(value = 1)),
             ofp.action.set_field(ofp.oxm.mpls_tp_ttl(value = 64)),
-            ofp.action.experimenter(experimenter = 0x1018, data = [0x00,0x03,0x00,0x00,0x00,0x00,0x00,0x00 ]), #push cw
+            #ofp.action.experimenter(experimenter = 0x1018, data = [0x00,0x03,0x00,0x00,0x00,0x00,0x00,0x00 ]), #push cw
+            ofp.action.sptn_push_cw(),
             ofp.action.set_field(ofp.oxm.mpls_tp_data_first_nibble(value = 1)),
             ofp.action.set_field(ofp.oxm.mpls_tp_ach_channel(value = 0x8902)),
             ofp.action.push_mpls(ethertype = 0x8847),
