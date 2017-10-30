@@ -186,7 +186,7 @@ class MEG():
     meg root class
     """
     
-    def __init__(self,megIndex,megName,lmepid,rmepid,type=1,localMpId=0):
+    def __init__(self,megIndex,megName,lmepid,rmepid,type=1,localOfMpId=-1,remoteOfMpId=-1):
         
         self.megIndex = megIndex
         self.megName = megName
@@ -194,8 +194,8 @@ class MEG():
         self.rmepid = rmepid
         self.type = type 
       
-        self.localMpId = localMpId
-            
+        self.localOfMpId = localOfMpId
+        self.remoteOfMpId = remoteOfMpId            
         if self.type == 1:
             self.managedInstanceType = 'lsp'            
         elif self.type == 2:
@@ -210,24 +210,35 @@ class MEG():
                                      str(self.megIndex),
                                      self.megName,
                                      self.managedInstanceType,
-                                     str(self.localMpId),
+                                     str(self.localOfMpId),
                                      str(self.lmepid),
                                      str(self.localMpId),
                                      str(self.rmepid)  ) 
         return self.strConf
         
-    def updateLocalMpId(self,localMpId):
-        self.localMpId = localMpId    
-    
+    def updateOpenFlowMpId(self,localOfMpId,remoteOfMpId = None):
+        self.localOfMpId = localOfMpId    
+        
+        if remoteOfMpId is None:
+            self.remoteOfMpId = localOfMpId 
+
+    def isOpenFlowMpIdNeedUpdated(self):
+        if self.localOfMpId < 0 or  self.remoteOfMpId < 0:
+            return True
+        else:
+            return False   
+        
+       
+         
     def getConfig(self,opt = "create"):
         self.strConf = CONF_MOD_MEG % (opt,
                                      str('mpls_meg_'+str(self.megIndex)),
                                      str(self.megIndex),
                                      self.megName,
                                      self.managedInstanceType,
-                                     str(self.localMpId),
+                                     str(self.localOfMpId),
                                      str(self.lmepid),
-                                     str(self.localMpId),
+                                     str(self.remoteOfMpId),
                                      str(self.rmepid)  )
         return self.strConf
     
