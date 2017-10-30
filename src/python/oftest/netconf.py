@@ -212,7 +212,7 @@ class MEG():
                                      self.managedInstanceType,
                                      str(self.localOfMpId),
                                      str(self.lmepid),
-                                     str(self.localMpId),
+                                     str(self.remoteOfMpId),
                                      str(self.rmepid)  ) 
         return self.strConf
         
