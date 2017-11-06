@@ -2061,7 +2061,22 @@ class DEVICE():
             
             self.sendMessage(msg)
 
-
+    def packetout(self,hw_addr,port):
+           
+        outpkt , opt = (lldp_pkt(src=hw_addr,port = port,systemName = "%016x" % self.agt.dpid), "lldp packet")
+        
+        logging.info("PKT OUT test with %s, port %s" % (opt, port))
+        msg = ofp.message.packet_out()
+        msg.in_port = ofp.OFPP_CONTROLLER
+        msg.data = str(outpkt)
+        act = ofp.action.output()
+        act.port = port
+        msg.actions.append(act)
+        msg.buffer_id = ofp.OFP_NO_BUFFER
+        
+        #logging.info("PacketOutLoad to: " + str(dp_port.port_no))
+        
+        self.sendMessage(msg)
 
 
     def getDeviceId(self):
@@ -3101,6 +3116,41 @@ class DeviceToplogyDiscover(advanced_tests.AdvancedDataPlane):
         self.assertEquals(self.pe2Config['CONN_TOPO'], self.pe2.getDevConnTopo(),'Probed topo is wrong')
 
 
+class DevicePacketout(advanced_tests.AdvancedDataPlane):
+    """
+    Generate lots of packet-out messages
+
+    Test packet-out function by sending lots of packet-out msgs
+    to the switch.  This test tracks the number of packets received in 
+    the dataplane, but does not enforce any requirements about the 
+    number received.
+    """
+    def runTest(self):
+        # Construct packet to send to dataplane
+        # Send packet to dataplane
+        self.pe1 = None
+        
+
+        print("\r\n")
+        
+        self.deviceIsOnline = 0
+        self.waitDeviceOnline = 3000 # wait timeout = 20s
+        while self.deviceIsOnline < 1 and self.waitDeviceOnline > 0:
+            for id,agt  in self.controller.device_agents:
+                #print(agt.dpid)
+                if self.pe1 == None : 
+                    self.pe1 = DEVICE(agt = agt)
+                    self.deviceIsOnline += 1
+                  
+            self.waitDeviceOnline -= 1
+            print('.')
+            time.sleep(1) # sleep 1s
+        self.assertEquals(self.deviceIsOnline, 1,'no enough device is online')
+        
+
+        print('test start ...')
+        while True:
+            self.pe1.packetout(hw_addr = [0x00,0x0e,0x5e,0x00,0x00,0x03],port = 16846846) 
 
 
 
