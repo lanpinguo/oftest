@@ -916,7 +916,7 @@ class PW():
                     table_id = ofdpa.OFDPA_FLOW_TABLE_ID_MPLS_LABEL_TRUST
                     match = ofp.match([
                         ofp.oxm.mpls_tp_qos_index(value = 1),
-                        ofp.oxm.mpls_tc(value=i)           
+                        ofp.oxm.packet_regs_0(value=i)           
                     ])
                     
                     '''
@@ -3172,7 +3172,7 @@ class Basic(advanced_tests.AdvancedDataPlane):
         self.waitDeviceOnline = 3000 # wait timeout = 20s
         while self.deviceIsOnline < 2 and self.waitDeviceOnline > 0:
             for id,agt in self.controller.device_agents:
-                print(id,agt.dpid)
+                print(id,hex(agt.dpid))
                 if self.pe1 == None and agt.dpid == self.pe1Config['DPID']: 
                     self.pe1 = DEVICE(agt = agt)
                     self.deviceIsOnline += 1
@@ -3501,7 +3501,7 @@ class LspProt(advanced_tests.AdvancedDataPlane):
         self.waitDeviceOnline = 3000 # wait timeout = 20s
         while self.deviceIsOnline < 2 and self.waitDeviceOnline > 0:
             for id,agt in self.controller.device_agents:
-                print(id,agt.dpid)
+                print(id,hex(agt.dpid))
                 if self.pe1 == None and agt.dpid == self.pe1Config['DPID']: 
                     self.pe1 = DEVICE(agt = agt)
                     self.deviceIsOnline += 1
@@ -3758,7 +3758,7 @@ class LspProtRcDC(advanced_tests.AdvancedDataPlane):
         self.waitDeviceOnline = 3000 # wait timeout = 20s
         while self.deviceIsOnline < 2 and self.waitDeviceOnline > 0:
             for id,agt in self.controller.device_agents:
-                print(id,agt.dpid)
+                print(id,hex(agt.dpid))
                 if self.pe1 == None and agt.dpid == self.pe1Config['DPID']: 
                     self.pe1 = DEVICE(agt = agt)
                     self.deviceIsOnline += 1
@@ -4307,7 +4307,7 @@ class LspProt_Scenario_3(advanced_tests.AdvancedDataPlane):
         self.waitDeviceOnline = 3000 # wait timeout = 20s
         while self.deviceIsOnline < 2 and self.waitDeviceOnline > 0:
             for id,agt in self.controller.device_agents:
-                print(id,agt.dpid)
+                print(id,hex(agt.dpid))
                 if self.pe1 == None and agt.dpid == self.pe1Config['DPID']: 
                     self.pe1 = DEVICE(agt = agt)
                     self.deviceIsOnline += 1
@@ -4761,7 +4761,8 @@ class QosPCP(advanced_tests.AdvancedProtocol):
         self.deviceIsOnline = 0
         self.waitDeviceOnline = 3000 # wait timeout = 20s
         while self.deviceIsOnline < 2 and self.waitDeviceOnline > 0:
-            for agt in self.controller.device_agents:
+            for id,agt in self.controller.device_agents:
+                print(id,hex(agt.dpid))
                 #print(agt.dpid)
                 if self.pe1 == None and agt.dpid == self.pe1Config['DPID']: 
                     self.pe1 = DEVICE(agt = agt)

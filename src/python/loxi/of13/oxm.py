@@ -7178,8 +7178,8 @@ class mpls_tp_color(oxm):
 oxm.subtypes[0xffff0605] = mpls_tp_color
 
 class mpls_tp_actset_output(oxm):
-    type_len = 0xffff5608
-    experimenter_id = 0x000004EA
+    type_len = 0xffff560C
+    experimenter_id = 0x4F4E4600
 
     def __init__(self, value=None):
         if value != None:
@@ -7193,17 +7193,17 @@ class mpls_tp_actset_output(oxm):
         packed = []
         packed.append(struct.pack("!L", self.type_len))
         packed.append(struct.pack("!L", self.experimenter_id))
-        packed.append(struct.pack("!L", self.value))
+        packed.append(struct.pack("!Q", self.value))
         return ''.join(packed)
 
     @staticmethod
     def unpack(reader):
         obj = mpls_tp_actset_output()
         _type_len = reader.read("!L")[0]
-        assert(_type_len == 0xffff5608)
+        assert(_type_len == 0xffff560C)
         _experimenter_id = reader.read("!L")[0]
-        assert(_experimenter_id == 0x000004EA)
-        obj.value = reader.read("!L")[0]
+        assert(_experimenter_id == 0x4F4E4600)
+        obj.value = reader.read("!Q")[0]
 
         return obj
 
@@ -7222,8 +7222,47 @@ class mpls_tp_actset_output(oxm):
             q.breakable()
         q.text('}')
 
-oxm.subtypes[0xffff5608] = mpls_tp_actset_output
+oxm.subtypes[0xffff560C] = mpls_tp_actset_output
 
+class packet_regs_0(oxm):
+    type_len = 0x80010008
 
+    def __init__(self, value=None):
+        if value != None:
+            self.value = value
+        else:
+            self.value = 0
+        return
+
+    def pack(self):
+        packed = []
+        packed.append(struct.pack("!L", self.type_len))
+        packed.append(struct.pack("!Q", self.value))
+        return ''.join(packed)
+
+    @staticmethod
+    def unpack(reader):
+        obj = mpls_tc()
+        _type_len = reader.read("!L")[0]
+        assert(_type_len == 0x80010008)
+        obj.value = reader.read("!Q")[0]
+        return obj
+
+    def __eq__(self, other):
+        if type(self) != type(other): return False
+        if self.value != other.value: return False
+        return True
+
+    def pretty_print(self, q):
+        q.text("packet_regs(0) {")
+        with q.group():
+            with q.indent(2):
+                q.breakable()
+                q.text("value = ");
+                q.text("%#x" % self.value)
+            q.breakable()
+        q.text('}')
+
+oxm.subtypes[0x80010008] = packet_regs_0
 
 
