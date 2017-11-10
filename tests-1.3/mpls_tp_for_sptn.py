@@ -605,7 +605,8 @@ class LSP():
         action = [ofp.action.pop_mpls(ethertype = 0x8847),
             ofp.action.set_field(ofp.oxm.mpls_tp_mp_id(value = meg.localOfMpId)),
             ofp.action.pop_mpls(ethertype = 0x8902),
-            ofp.action.experimenter(experimenter = 0x1018, data = [0x00,0x04,0x00,0x00,0x00,0x00,0x00,0x00 ]),
+            ofp.action.sptn_pop_cw_or_ach()
+            #ofp.action.experimenter(experimenter = 0x1018, data = [0x00,0x04,0x00,0x00,0x00,0x00,0x00,0x00 ]),
         ]
         instructions=[
             ofp.instruction.apply_actions(actions = action),
@@ -868,8 +869,10 @@ class PW():
                 ofp.action.pop_vlan() ,
                 ofp.action.set_field(ofp.oxm.tunnel_id(value = self.tunnel_id)) ,
                 #ofp.action.pop_vlan() ,
-                ofp.action.experimenter(experimenter = 0x1018, data = [0x00,0x02,0x00,0x00,0x00,0x00,0x00,0x00 ]),
-                ofp.action.experimenter(experimenter = 0x1018, data = [0x00,0x04,0x00,0x00,0x00,0x00,0x00,0x00 ]),
+                ofp.action.sptn_pop_l2_header(),
+                #ofp.action.experimenter(experimenter = 0x1018, data = [0x00,0x02,0x00,0x00,0x00,0x00,0x00,0x00 ]),
+                ofp.action.sptn_pop_cw_or_ach(),
+                #ofp.action.experimenter(experimenter = 0x1018, data = [0x00,0x04,0x00,0x00,0x00,0x00,0x00,0x00 ]),
                 ofp.action.set_field(ofp.oxm.mpls_tp_mpls_l2_port(value = self.network_mpls_l2_port)) ,        
                 ofp.action.set_field(ofp.oxm.mpls_tp_mpls_type(value = 1)) ,        
             ]
@@ -4778,10 +4781,10 @@ class QosPCP(advanced_tests.AdvancedProtocol):
 
         while True:
             cmd = raw_input('cmd: ')
-            print(cmd)
-            if cmd == 'b':
+            #print(cmd)
+            if cmd == 'basic':
                 self.addBasic()
-            elif cmd == 'd':
+            elif cmd == 'delete':
                 self.delete()
             elif cmd == 'exit':
                 break 
@@ -4814,7 +4817,8 @@ class QosPCP(advanced_tests.AdvancedProtocol):
         remarkPattern = ofdpa.OFDPA_QOS_MODE_PCP
         lspQos = QoS(index = 2,local2exp=local2exp,remarkPattern=remarkPattern,level=ofdpa.OFDPA_QOS_LEVEL_LSP)
 
-        if self.pe1 != None:
+        self.pe1Sel = 1
+        if self.pe1 != None and self.pe1Sel == 1:
             '''
             config self.pe1
             '''
@@ -4830,7 +4834,8 @@ class QosPCP(advanced_tests.AdvancedProtocol):
             self.assertEqual(self.pe1.apply_status(), 0,
              'response status != expect status 0')
         
-        if self.pe2 != None:
+        self.pe2Sel = 0
+        if self.pe2 != None and self.pe2Sel == 1:
             '''
             config pe2
             ''' 
@@ -4850,7 +4855,39 @@ class QosPCP(advanced_tests.AdvancedProtocol):
 
 
     def delete(self):
-        pass            
+        self.pe1Sel = 1
+        if self.pe1 != None and self.pe1Sel == 1:
+
+            (rc,info) = self.pe1.deletePw(pwIndex = 1)
+            print(('%-24s: ' % 'deletePw')+  info  + '('  +  str(rc)  + ')')
+
+            time.sleep(1)
+
+            (rc,info) = self.pe1.deleteTunnel(tunnelIndex = 1)
+            print(('%-24s: ' % 'deleteTunnel')+  info  + '('  +  str(rc)  + ')')
+
+            time.sleep(1)
+            
+            (rc,info) = self.pe1.deleteLsp(lspIndex = 1)
+            print(('%-24s: ' % 'deleteLsp')+  info  + '('  +  str(rc)  + ')')
+            
+
+        
+        self.pe2Sel = 1
+        if self.pe2 != None and self.pe2Sel == 1:
+             
+            (rc,info) = self.pe2.deletePw(pwIndex = 1)
+            print(('%-24s: ' % 'deletePw')+  info  + '('  +  str(rc)  + ')')
+
+            time.sleep(1)
+
+            (rc,info) = self.pe2.deleteTunnel(tunnelIndex = 1)
+            print(('%-24s: ' % 'deleteTunnel')+  info  + '('  +  str(rc)  + ')')
+
+            time.sleep(1)
+            
+            (rc,info) = self.pe2.deleteLsp(lspIndex = 1)
+            print(('%-24s: ' % 'deleteLsp')+  info  + '('  +  str(rc)  + ')')
             
 
 

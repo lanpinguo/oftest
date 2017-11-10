@@ -1366,7 +1366,7 @@ class sptn_push_cw(sptn):
 
     @staticmethod
     def unpack(reader):
-        obj = sptn_act_color_based_ctr()
+        obj = sptn_push_cw()
         _type = reader.read("!H")[0]
         assert(_type == 65535)
         _len = reader.read("!H")[0]
@@ -1495,7 +1495,7 @@ class sptn_act_set_mpls_tc_from_vpn_table(sptn):
 
     @staticmethod
     def unpack(reader):
-        obj = sptn_act_color_based_ctr()
+        obj = sptn_act_set_mpls_tc_from_vpn_table()
         _type = reader.read("!H")[0]
         assert(_type == 65535)
         _len = reader.read("!H")[0]
@@ -1576,7 +1576,7 @@ class sptn_act_set_mpls_tc_from_tunnel_table(sptn):
 
     @staticmethod
     def unpack(reader):
-        obj = sptn_act_color_based_ctr()
+        obj = sptn_act_set_mpls_tc_from_tunnel_table()
         _type = reader.read("!H")[0]
         assert(_type == 65535)
         _len = reader.read("!H")[0]
@@ -1615,4 +1615,248 @@ class sptn_act_set_mpls_tc_from_tunnel_table(sptn):
             q.breakable()
         q.text('}')
 
-sptn.subtypes[7] = sptn_act_set_mpls_tc_from_tunnel_table
+sptn.subtypes[17] = sptn_act_set_mpls_tc_from_tunnel_table
+
+
+
+
+class sptn_pop_l2_header(sptn):
+    type = 65535
+    subtype = 2
+
+    def __init__(self):
+
+        return
+
+    def pack(self):
+        packed = []
+        packed.append(struct.pack("!H", self.type))
+        packed.append(struct.pack("!H", 0)) # placeholder for len at index 1
+        packed.append(struct.pack("!L", self.experimenter))
+        packed.append(struct.pack("!H", self.subtype))
+        packed.append('\x00' * 6)
+        length = sum([len(x) for x in packed])
+        packed[1] = struct.pack("!H", length)
+        return ''.join(packed)
+
+    @staticmethod
+    def unpack(reader):
+        obj = sptn_pop_l2_header()
+        _type = reader.read("!H")[0]
+        assert(_type == 65535)
+        _len = reader.read("!H")[0]
+        orig_reader = reader
+        reader = orig_reader.slice(_len, 4)
+        _experimenter = reader.read("!L")[0]
+        assert(_experimenter == self.experimenter)
+        _subtype = reader.read("!H")[0]
+        assert(_subtype == self.subtype)
+        reader.skip(6)
+        return obj
+
+    def __eq__(self, other):
+        if type(self) != type(other): return False
+        if self.subtype != other.subtype : return False
+        return True
+
+    def pretty_print(self, q):
+        q.text("sptn_pop_l2_header {")
+        with q.group():
+            with q.indent(2):
+                q.breakable()
+            q.breakable()
+        q.text('}')
+
+sptn.subtypes[2] = sptn_pop_l2_header
+
+class sptn_pop_cw_or_ach(sptn):
+    type = 65535
+    subtype = 4
+
+    def __init__(self):
+
+        return
+
+    def pack(self):
+        packed = []
+        packed.append(struct.pack("!H", self.type))
+        packed.append(struct.pack("!H", 0)) # placeholder for len at index 1
+        packed.append(struct.pack("!L", self.experimenter))
+        packed.append(struct.pack("!H", self.subtype))
+        packed.append('\x00' * 6)
+        length = sum([len(x) for x in packed])
+        packed[1] = struct.pack("!H", length)
+        return ''.join(packed)
+
+    @staticmethod
+    def unpack(reader):
+        obj = sptn_pop_cw_or_ach()
+        _type = reader.read("!H")[0]
+        assert(_type == 65535)
+        _len = reader.read("!H")[0]
+        orig_reader = reader
+        reader = orig_reader.slice(_len, 4)
+        _experimenter = reader.read("!L")[0]
+        assert(_experimenter == self.experimenter)
+        _subtype = reader.read("!H")[0]
+        assert(_subtype == self.subtype)
+        reader.skip(6)
+        return obj
+
+    def __eq__(self, other):
+        if type(self) != type(other): return False
+        if self.subtype != other.subtype : return False
+        return True
+
+    def pretty_print(self, q):
+        q.text("sptn_pop_cw_or_ach {")
+        with q.group():
+            with q.indent(2):
+                q.breakable()
+            q.breakable()
+        q.text('}')
+
+sptn.subtypes[4] = sptn_pop_cw_or_ach
+
+
+class onf_ext(experimenter):
+    subtypes = {}
+
+    type = 65535
+    experimenter = 0x4F4E4600
+
+    def __init__(self, subtype=None):
+        if subtype != None:
+            self.subtype = subtype
+        else:
+            self.subtype = 0
+        return
+
+    def pack(self):
+        packed = []
+        packed.append(struct.pack("!H", self.type))
+        packed.append(struct.pack("!H", 0)) # placeholder for len at index 1
+        packed.append(struct.pack("!L", self.experimenter))
+        packed.append(struct.pack("!H", self.subtype))
+        packed.append('\x00' * 2)
+        packed.append('\x00' * 4)
+        length = sum([len(x) for x in packed])
+        packed[1] = struct.pack("!H", length)
+        return ''.join(packed)
+
+    @staticmethod
+    def unpack(reader):
+        subtype, = reader.peek('!H', 8)
+        subclass = nicira.subtypes.get(subtype)
+        if subclass:
+            return subclass.unpack(reader)
+
+        obj = nicira()
+        _type = reader.read("!H")[0]
+        assert(_type == 65535)
+        _len = reader.read("!H")[0]
+        orig_reader = reader
+        reader = orig_reader.slice(_len, 4)
+        _experimenter = reader.read("!L")[0]
+        assert(_experimenter == 0x4F4E4600)
+        obj.subtype = reader.read("!H")[0]
+        reader.skip(2)
+        reader.skip(4)
+        return obj
+
+    def __eq__(self, other):
+        if type(self) != type(other): return False
+        if self.subtype != other.subtype: return False
+        return True
+
+    def pretty_print(self, q):
+        q.text("onf_ext {")
+        with q.group():
+            with q.indent(2):
+                q.breakable()
+            q.breakable()
+        q.text('}')
+
+experimenter.subtypes[0x4F4E4600] = onf_ext
+
+
+
+class onf_act_copy_field(onf_ext):
+    type = 65535
+    subtype = 3200
+    experimenter = 0x4F4E4600
+    
+    def __init__(self, qos_index, traffic_class, color):
+        if qos_index != None:
+            self.qos_index = qos_index
+        else:
+            self.qos_index = 0
+            
+        if traffic_class != None:
+            self.traffic_class = traffic_class
+        else:
+            self.traffic_class = 0
+            
+        if color != None:
+            self.color = color
+        else:
+            self.color = 0
+
+        return
+
+    def pack(self):
+        packed = []
+        packed.append(struct.pack("!H", self.type))
+        packed.append(struct.pack("!H", 0)) # placeholder for len at index 1
+        packed.append(struct.pack("!L", self.experimenter))
+        packed.append(struct.pack("!H", self.subtype))
+        packed.append(struct.pack("!H", self.qos_index))
+        packed.append(struct.pack("!B", self.traffic_class))
+        packed.append(struct.pack("!B", self.color))
+        packed.append('\x00' * 2)
+        length = sum([len(x) for x in packed])
+        packed[1] = struct.pack("!H", length)
+        return ''.join(packed)
+
+    @staticmethod
+    def unpack(reader):
+        obj = onf_act_copy_field()
+        _type = reader.read("!H")[0]
+        assert(_type == 65535)
+        _len = reader.read("!H")[0]
+        orig_reader = reader
+        reader = orig_reader.slice(_len, 4)
+        _experimenter = reader.read("!L")[0]
+        assert(_experimenter == self.experimenter)
+        _subtype = reader.read("!H")[0]
+        assert(_subtype == self.subtype)
+        obj.qos_index = reader.read("!H")[0]
+        obj.traffic_class = reader.read("!B")[0]
+        obj.color = reader.read("!B")[0]
+        reader.skip(2)
+        return obj
+
+    def __eq__(self, other):
+        if type(self) != type(other): return False
+        if self.qos_index != oother.qos_index : return False
+        if self.traffic_class != oother.traffic_class : return False
+        if self.color != oother.color : return False              
+        return True
+
+    def pretty_print(self, q):
+        q.text("onf_act_copy_field {")
+        with q.group():
+            with q.indent(2):
+                q.breakable()
+                q.text("qos_index = ");
+                q.text("%#d" % self.qos_index)
+                q.text(","); q.breakable()                
+                q.text("traffic_class = ");
+                q.text("%#d" % self.traffic_class)
+                q.text(","); q.breakable()
+                q.text("color = ");
+                q.text("%#d" % self.color)                
+            q.breakable()
+        q.text('}')
+
+onf_ext.subtypes[17] = onf_act_copy_field

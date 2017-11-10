@@ -10331,7 +10331,7 @@ class sptn_mpls_tunnel_label_remark_action_modify(sptn_mpls_tunnel_label_remark_
 sptn_mpls_tunnel_label_remark_action_mod.subtypes[1] = sptn_mpls_tunnel_label_remark_action_modify
 
 
-class sptn_mpls_tunnel_label_remark_action_delete(sptn_mpls_vpn_label_remark_action_mod):
+class sptn_mpls_tunnel_label_remark_action_delete(sptn_mpls_tunnel_label_remark_action_mod):
 
     _command = 2
 
