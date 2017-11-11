@@ -391,12 +391,13 @@ class LSP():
 
 
         '''
-        Add color based counter 
+        Add uni2nni color based counter 
         '''
         if self.colorBasedCtr:
-            for ctr in self.colorBasedCtr:
-                msg = ofp.message.sptn_color_based_ctr_add(block_index=ctr.index,transmit_packets=0,receive_packets=0,color=ctr.color)
-                self.uni2nni.append(msg)         
+            ctr1 = colorBasedCtr[0]
+            msg_ctr = ofp.message.sptn_color_based_ctr_add(block_index=ctr1.index,transmit_packets=0,receive_packets=0,color=ctr1.color)
+            self.uni2nni.append(msg_ctr)
+               
 
 
         '''
@@ -509,6 +510,14 @@ class LSP():
         self.nni2uni.append(msg)
         
         '''
+        add nni2uni color based counter
+        '''
+        if self.colorBasedCtr:
+            ctr2 = colorBasedCtr[1]
+            msg_ctr = ofp.message.sptn_color_based_ctr_add(block_index=ctr2.index,transmit_packets=0,receive_packets=0,color=ctr2.color)
+            self.nni2uni.append(msg_ctr)
+        
+        '''
         Add mpls 1 table entry
         '''
         table_id = ofdpa.OFDPA_FLOW_TABLE_ID_MPLS_1
@@ -518,10 +527,18 @@ class LSP():
             ofp.oxm.mpls_bos(value = 0),
         ])
         
+   
+        
         instructions=[
             ofp.instruction.apply_actions(actions = [ofp.action.pop_mpls(ethertype = 0x8847)]),
-            ofp.instruction.goto_table(ofdpa.OFDPA_FLOW_TABLE_ID_MPLS_2),
+            ofp.instruction.goto_table(ofdpa.OFDPA_FLOW_TABLE_ID_MPLS_2)
         ]
+        
+        if self.colorBasedCtr:
+            actionSptnActColorBasedCtr_flow = ofp.action.sptn_act_color_based_ctr( color = self.colorBasedCtr[1].color,\
+                                                                              index = self.colorBasedCtr[1].index )
+            instructions.append(ofp.instruction.write_actions(actions = [actionSptnActColorBasedCtr_flow]))
+            
         priority = 0
 
         logging.info("Inserting  mpls 1 flow")
@@ -797,7 +814,7 @@ class PW():
                 match = ofp.match([
                     ofp.oxm.mpls_tp_actset_output(value = self.uniPort),
                     ofp.oxm.mpls_tp_traffic_class(value=i) ,   
-                    ofp.oxm.mpls_tp_color(value = 1)
+                    ofp.oxm.mpls_tp_color(value = 0)
                 ])
                 
                 if self.qosApplyMode == ofdpa.OFDPA_QOS_MODE_DSCP:
@@ -1304,7 +1321,7 @@ class PW():
                 apply actions
                 '''
                 traffic_class = i
-                apy_actions = [ofp.action.set_field(ofp.oxm.mpls_tp_color(value = 1)) ,
+                apy_actions = [ofp.action.set_field(ofp.oxm.mpls_tp_color(value = 0)) ,
                             ofp.action.set_field(ofp.oxm.mpls_tp_traffic_class(value = traffic_class)) ,   
                 ]
                 instructions=[
@@ -2157,32 +2174,7 @@ class DEVICE():
     def sendMessage(self,msg):
         logging.info(msg.show())
         return self.agt.message_send(msg)
-    
-
-
-    def addColorBasedCtr(self):
-        
-        '''
-        temporarily place here
-        '''
-
-        msg = ofp.message.sptn_color_based_ctr_add(block_index=1,transmit_packets=0,receive_packets=0,color=1)
-        self.sendMessage(msg)     
-
-
-    def getColorBasedCtr(self):
-        
-        '''
-        temporarily place here
-        '''
-
-        msg = ofp.message.sptn_color_based_ctr_multipart_request(block_index=1,color=1)
-        self.sendMessage(msg)  
-
-        #msg = ofp.message.sptn_color_based_ctr_multipart_request(block_index=2,color=1)
-        #self.sendMessage(msg)  
-
-
+       
     
     def addLsp(self,lspIndex, inLabel, outLabel, nniPort, dstMac, nniVlan = None,Qos = None, colorBasedCtrColor = None):
         portMac = self.getPortMac(nniPort) 
@@ -2369,6 +2361,8 @@ class DEVICE():
                 print("error msg")
         #do_barrier(self.agt)   
         return (0 , 'delete success') 
+
+   
 
     def addOam2Lsp(self,meg,lsp):
         '''
@@ -2730,6 +2724,12 @@ class DEVICE():
                 mpls_tc = msg.mpls_tc,
                 vlan_pcp = msg.vlan_pcp,
                 vlan_dei = msg.vlan_dei)
+        elif isinstance(msg, ofp.message.sptn_color_based_ctr_add):
+            out = ofp.message.sptn_color_based_ctr_delete(
+                block_index = msg.block_index,
+                transmit_packets = msg.transmit_packets,
+                receive_packets = msg.receive_packets,
+                color = msg.color)
         else:
             return None
         #print(out)
@@ -2822,7 +2822,7 @@ class DEVICE():
    
 
     def getLspStat(self,lspIndex):
- 
+        
         target = None    
         for tmp in self.lsp:
             if tmp.lspIndex == lspIndex:
@@ -2830,16 +2830,16 @@ class DEVICE():
         if target:
             #get LSP Tx counter
             if isinstance(target.staLspTxObj, ofp.message.group_add):
-                msg = ofp.message.group_stats_request(group_id = target.staLspTxObj.group_id)
+                msg = ofp.message.sptn_color_based_ctr_multipart_request(block_index= target.colorBasedCtr[0].index,color=0xff)
                 (resp,pkt) = self.agt.transact(msg)
-                if isinstance(resp,ofp.message.group_stats_reply):
-                    for group_stats in resp.entries:
+                if isinstance(resp,ofp.message.sptn_color_based_ctr_multipart_reply):
+                    for lsp_stats in resp.entries:
                         #print(' ')
                         #print("group_id            :" + hex(group_stats.group_id))
                         #print("duration_sec        :" + str(group_stats.duration_sec))
                         #print("packet_count        :" + str(group_stats.packet_count))
                         #print("byte_count          :" + str(group_stats.byte_count))
-                        lspTx = [group_stats.packet_count,group_stats.byte_count]
+                        lspTx = [lsp_stats.packets,lsp_stats.bytes]
                 else:
                     print("error type")
                     return ([-1,-1],[-1,-1],-1) 
@@ -2848,31 +2848,25 @@ class DEVICE():
             
             #get LSP Rx counter
             if isinstance(target.staLspRxObj, ofp.message.flow_add):
-                match = target.staLspRxObj.match
-            else:
-                return ([-1,-1],[-1,-1],-1)
-            msg = ofp.message.flow_stats_request(table_id = ofdpa.OFDPA_FLOW_TABLE_ID_MPLS_1 ,
-                                                 out_port = ofp.OFPP_ANY,
-                                                 out_group = ofp.OFPG_ANY,
-                                                 match =match
-                                                 )
-            (resp,pkt) = self.agt.transact(msg)
-            if isinstance(resp,ofp.message.flow_stats_reply):
-                for flow_stats in resp.entries:
-                    #print(' ')
-                    #print("table_id            :" + str(flow_stats.table_id))
-                    #print("duration_sec        :" + str(flow_stats.duration_sec))
-                    #print("packet_count        :" + str(flow_stats.packet_count))
-                    #print("byte_count          :" + str(flow_stats.byte_count))
-                    lspRx = [flow_stats.packet_count,flow_stats.byte_count]
-                    return (lspRx,lspTx,flow_stats.duration_sec)
-            else:
-                print("error type")
-                return ([-1,-1],[-1,-1],-1)
+                msg = ofp.message.sptn_color_based_ctr_multipart_request(block_index= target.colorBasedCtr[1].index,color=0xff)
+                (resp,pkt) = self.agt.transact(msg)
+                if isinstance(resp,ofp.message.sptn_color_based_ctr_multipart_reply):
+                    for lsp_stats in resp.entries:
+                        #print(' ')
+                        #print("table_id            :" + str(flow_stats.table_id))
+                        #print("duration_sec        :" + str(flow_stats.duration_sec))
+                        #print("packet_count        :" + str(flow_stats.packet_count))
+                        #print("byte_count          :" + str(flow_stats.byte_count))
+                        lspRx = [lsp_stats.packets,lsp_stats.bytes]
+                        return (lspRx,lspTx)
+                else:
+                    print("error type")
+                    return ([-1,-1],[-1,-1],-1)
         
         else:
             print("lsp not found")
             return ([-1,-1],[-1,-1],-1)
+        
         
         
     def getPwStat(self,pwIndex):
@@ -3027,7 +3021,23 @@ class DEVICE():
             print("pw not found")
             return ([-1,-1],[-1,-1],-1)
 
-
+    def getPortStat(self,portIndex):
+        
+        #get Port Tx counter
+        msg = ofp.message.port_stats_request(port_no = portIndex)
+        (resp,pkt) = self.agt.transact(msg)
+        if isinstance(resp,ofp.message.port_stats_reply):
+        ###entries in E:\autotest\oftest\src\python\loxi\of13\common.py
+            for port_stats in resp.entries:
+                ###E:\autotest\oftest\src\python\loxi\of13\message.py
+                portTx = [port_stats.tx_packets,port_stats.tx_bytes,port_stats.tx_dropped,port_stats.tx_errors]
+                portRx = [port_stats.rx_packets,port_stats.rx_bytes,port_stats.rx_dropped,\
+                            port_stats.rx_errors,port_stats.rx_frame_err,port_stats.rx_over_err,port_stats.rx_crc_err]
+                return(portTx,portRx,port_stats.collisions,port_stats.duration_sec,port_stats.duration_nsec)
+        else:
+            print("error type")
+            return([-1,-1],[-1,-1,-1,-1],[-1,-1,-1,-1,-1,-1,-1],-1,-1,-1)
+            
 
 class DeviceOnline(advanced_tests.AdvancedProtocol):
     """
@@ -3340,7 +3350,8 @@ class BasicStats(advanced_tests.AdvancedDataPlane):
         self.deviceIsOnline = 0
         self.waitDeviceOnline = 3000 # wait timeout = 20s
         while self.deviceIsOnline < 2 and self.waitDeviceOnline > 0:
-            for agt in self.controller.device_agents:
+            for id,agt in self.controller.device_agents:
+                print(id,hex(agt.dpid))
                 #print(agt.dpid)
                 if self.pe1 == None and agt.dpid == self.pe1Config['DPID']: 
                     self.pe1 = DEVICE(agt = agt)
@@ -3361,9 +3372,7 @@ class BasicStats(advanced_tests.AdvancedDataPlane):
             if cmd == 'basic':
                 self.addBasic()
             elif cmd == 'sta':
-                self.addColorBasedCtr()
-            elif cmd == 'get':
-                self.getColorBasedCtr()
+                self.showStatistic()
             elif cmd == 'exit':
                 break
             elif cmd == "del":
@@ -3372,37 +3381,25 @@ class BasicStats(advanced_tests.AdvancedDataPlane):
                 print('unknown cmd') 
    
    
-                
-    def addColorBasedCtr(self):
-        self.pe1.addColorBasedCtr()                          
-        self.pe2.addColorBasedCtr()     
-    def getColorBasedCtr(self):
-        self.pe1.getColorBasedCtr()    
-        self.pe2.getColorBasedCtr()  
+
 
     def addBasic(self):
         uniPort = 3
         uniVlan = [10]
         nniPort_w = 4
-        nniPort_p = 2
-        nniPort_x = 5
+
+
         nniVlan = 100
-        
-        pe1PortMacW = self.pe1.agt.port_desc[nniPort_w - 1].hw_addr 
-        pe1PortMacP = self.pe1.agt.port_desc[nniPort_p - 1].hw_addr 
-        
-        if self.pe2 == None:
-            pe2PortMac = [0x0e,0x5e,0x05,0x12,0xff,0xa0]
-        else:
-            pe2PortMacW = self.pe2.agt.port_desc[nniPort_w - 1].hw_addr 
-            pe2PortMacP = self.pe2.agt.port_desc[nniPort_p - 1].hw_addr   
-  
+        pe1PortMacW = self.pe1.getPortMac(nniPort_w) 
+     
+        pe2PortMacW = self.pe2.getPortMac(nniPort_w) 
+
         if self.pe1 != None:
             '''
             config self.pe1
             '''
             lsp_w = self.pe1.addLsp(lspIndex = 1, inLabel = 1000,outLabel = 2000,nniPort = nniPort_w,\
-                                    nniVlan = nniVlan, dstMac = pe2PortMacW)
+                                    nniVlan = nniVlan, dstMac = pe2PortMacW, colorBasedCtrColor=True)
                 
             tunnel = self.pe1.addTunnel(tunnelIndex = 1, lsp_list = [lsp_w])
             
@@ -3422,7 +3419,7 @@ class BasicStats(advanced_tests.AdvancedDataPlane):
             config pe2
             ''' 
             lsp_w = self.pe2.addLsp(lspIndex = 1, inLabel = 2000,outLabel = 1000,nniPort = nniPort_w,
-                nniVlan = nniVlan,dstMac = pe1PortMacW)
+                nniVlan = nniVlan,dstMac = pe1PortMacW, colorBasedCtrColor=True)
                             
             tunnel = self.pe2.addTunnel(tunnelIndex = 1, lsp_list = [lsp_w])
             
@@ -3438,7 +3435,107 @@ class BasicStats(advanced_tests.AdvancedDataPlane):
                      'response status != expect status 0')
 
     def showStatistic(self):
-        pass
+        self.showLspStatistic()
+        self.showPortStatistic()
+
+    def showPortStatistic(self):
+        if self.pe1 != None:
+            print("PE1 STAT----------------------")
+            print("Port 9")
+            (portTx,portRx,collisions,duration_sec,duration_nsec) = self.pe1.getPortStat(portIndex = 3)
+            print("Port9 Tx Packets                   :"+str(portTx[0])) 
+            print("Port9 Rx Packets                   :"+str(portRx[0]))        
+            print("Port9 Tx Bytes                     :"+str(portTx[1])) 
+            print("Port9 Rx Bytes                     :"+str(portRx[1])) 
+            print("Port9 Tx Dropped                   :"+str(portTx[2])) 
+            print("Port9 Rx Dropped                   :"+str(portRx[2]))
+            print("Port9 Tx Errors                    :"+str(portTx[3])) 
+            print("Port9 Rx Errors                    :"+str(portRx[3]))
+            print("Port9 Rx FrameErrors               :"+str(portRx[4]))
+            print("Port9 Rx OverErrors                :"+str(portRx[5]))
+            print("Port9 Rx CRCErrors                 :"+str(portRx[6]))
+            print("Collisions                        :"+str(collisions))
+            print("Duration sec                    :"+str(duration_sec))
+            print("Duration nsec                  :"+str(duration_nsec))
+            print("Port 9")
+            
+            print("Port 10")
+            (portTx,portRx,collisions,duration_sec,duration_nsec) = self.pe1.getPortStat(portIndex = 4)
+            print("Port10 Tx Packets                   :"+str(portTx[0])) 
+            print("Port10 Rx Packets                   :"+str(portRx[0]))        
+            print("Port10 Tx Bytes                     :"+str(portTx[1])) 
+            print("Port10 Rx Bytes                     :"+str(portRx[1])) 
+            print("Port10 Tx Dropped                   :"+str(portTx[2])) 
+            print("Port10 Rx Dropped                   :"+str(portRx[2]))
+            print("Port10 Tx Errors                    :"+str(portTx[3])) 
+            print("Port10 Rx Errors                    :"+str(portRx[3]))
+            print("Port10 Rx FrameErrors               :"+str(portRx[4]))
+            print("Port10 Rx OverErrors                :"+str(portRx[5]))
+            print("Port10 Rx CRCErrors                 :"+str(portRx[6]))
+            print("Collisions                        :"+str(collisions))
+            print("Duration sec                    :"+str(duration_sec))
+            print("Duration nsec                  :"+str(duration_nsec))
+            print("Port 10")
+        
+        if self.pe2 != None:
+            print("PE2 STAT----------------------")
+            print("Port 6")
+            (portTx,portRx,collisions,duration_sec,duration_nsec) = self.pe2.getPortStat(portIndex = 3)
+            print("Port6 Tx Packets                   :"+str(portTx[0])) 
+            print("Port6 Rx Packets                   :"+str(portRx[0]))        
+            print("Port6 Tx Bytes                     :"+str(portTx[1])) 
+            print("Port6 Rx Bytes                     :"+str(portRx[1])) 
+            print("Port6 Tx Dropped                   :"+str(portTx[2])) 
+            print("Port6 Rx Dropped                   :"+str(portRx[2]))
+            print("Port6 Tx Errors                    :"+str(portTx[3])) 
+            print("Port6 Rx Errors                    :"+str(portRx[3]))
+            print("Port6 Rx FrameErrors               :"+str(portRx[4]))
+            print("Port6 Rx OverErrors                :"+str(portRx[5]))
+            print("Port6 Rx CRCErrors                 :"+str(portRx[6]))
+            print("Collisions                        :"+str(collisions))
+            print("Duration sec                    :"+str(duration_sec))
+            print("Duration nsec                  :"+str(duration_nsec))
+            print("Port 6")
+            
+            print("Port 5")
+            (portTx,portRx,collisions,duration_sec,duration_nsec) = self.pe2.getPortStat(portIndex = 4)
+            print("Port5 Tx Packets                   :"+str(portTx[0])) 
+            print("Port5 Rx Packets                   :"+str(portRx[0]))        
+            print("Port5 Tx Bytes                     :"+str(portTx[1])) 
+            print("Port5 Rx Bytes                     :"+str(portRx[1])) 
+            print("Port5 Tx Dropped                   :"+str(portTx[2])) 
+            print("Port5 Rx Dropped                   :"+str(portRx[2]))
+            print("Port5 Tx Errors                    :"+str(portTx[3])) 
+            print("Port5 Rx Errors                    :"+str(portRx[3]))
+            print("Port5 Rx FrameErrors               :"+str(portRx[4]))
+            print("Port5 Rx OverErrors                :"+str(portRx[5]))
+            print("Port5 Rx CRCErrors                 :"+str(portRx[6]))
+            print("Collisions                        :"+str(collisions))
+            print("Duration sec                    :"+str(duration_sec))
+            print("Duration nsec                  :"+str(duration_nsec))
+            print("Port 5")
+    
+    def showLspStatistic(self):
+        if self.pe1 != None:
+            print("PE1 LSP----------------------")
+            print("lsp 1")
+            (lspRx,lspTx) = self.pe1.getLspStat(lspIndex = 1)
+            print("Lsp1 Tx Packets                   :"+str(lspTx[0])) 
+            print("Lsp1 Rx Packets                   :"+str(lspRx[0]))        
+            print("Lsp1 Tx Bytes                     :"+str(lspTx[1])) 
+            print("Lsp1 Rx Bytes                     :"+str(lspRx[1]))    
+            print("lsp 1")
+                
+     
+        if self.pe2 != None:
+            print("PE2 LSP----------------------")
+            print("lsp 1")
+            (lspRx,lspTx) = self.pe2.getLspStat(lspIndex = 1)
+            print("Lsp1 Tx Packets                   :"+str(lspTx[0])) 
+            print("Lsp1 Rx Packets                   :"+str(lspRx[0]))        
+            print("Lsp1 Tx Bytes                     :"+str(lspTx[1])) 
+            print("Lsp1 Rx Bytes                     :"+str(lspRx[1]))    
+            print("lsp 1")
                                    
     def deleteVpws(self):
         if self.pe1 != None:
