@@ -199,13 +199,16 @@ class QoS():
     @ivar car: indicate the speed limitation policy applying to the port.
     @ivar level: indicate the level of qos config , such as 1-pw, 2-lsp, 3-tunnel,etc.
     """
-    def __init__(self,index,level=ofdpa.OFDPA_QOS_LEVEL_PW,cars=[],colorMap=[],local2exp=[],\
-                 exp2local=[],remarkPattern=ofdpa.OFDPA_QOS_MODE_PCP):
+    def __init__(self,index,level=ofdpa.OFDPA_QOS_LEVEL_PW,cars=[],colorMap=[],pcp2tc=[],\
+                 tc2pcp=[], tc2exp=[], exp2tc=[], remarkPattern=ofdpa.OFDPA_QOS_MODE_PCP):
         self.index = index
         self.level = level
         self.cars = cars
         self.colorMap = colorMap
-        self.local2exp = local2exp
+        self.pcp2tc = pcp2tc
+        self.tc2pcp = tc2pcp
+        self.tc2exp = tc2exp
+        self.exp2tc = exp2tc
         self.remarkPattern = remarkPattern        
        
 
@@ -447,7 +450,7 @@ class LSP():
             or self.qosApplyMode == ofdpa.OFDPA_QOS_MODE_DSCP:
             for i in range(8):
                 traffic_class = i 
-                msg = ofp.message.sptn_mpls_tunnel_label_remark_action_add(index=2,traffic_class=traffic_class,color=1,mpls_tc=Qos.local2exp[i],vlan_pcp=1,vlan_dei=0)
+                msg = ofp.message.sptn_mpls_tunnel_label_remark_action_add(index=2,traffic_class=traffic_class,color=1,mpls_tc=Qos.tc2exp[i],vlan_pcp=0,vlan_dei=0)
                 self.uni2nni.append(msg)     
   
         '''
@@ -715,7 +718,7 @@ class PW():
     """
     def __init__(self,pwIndex,inLabel,outLabel,uniPort,tunnel, uniVlan = [],ivid = [],\
                    Qos = None,protMode=0,inLabelPro=None,outLabelPro=None,tunnelPro=None,\
-                   res = None):
+                   res = None, ACMode=None):
         self.nni2uni = []
         self.uni2nni = []
         self.Oam_nni2uni = []
@@ -728,6 +731,7 @@ class PW():
         self.tunnel_handle = tunnel.bundle_handle()
         self.inLabelPro = inLabelPro
         self.outLabelPro = outLabelPro
+        self.ACMode = ACMode
         if tunnelPro is None:
             self.tunnel_handlePro = None
         else:
@@ -810,6 +814,7 @@ class PW():
                 '''
                 Add Egress DSCP PCP Remark table entry
                 '''
+                pcpvalue = self.Qos.tc2pcp[i]
                 table_id = ofdpa.OFDPA_FLOW_TABLE_ID_EGRESS_DSCP_PCP_REMARK
                 match = ofp.match([
                     ofp.oxm.mpls_tp_actset_output(value = self.uniPort),
@@ -831,7 +836,7 @@ class PW():
                 traffic_class = i 
                 apy_actions = []
                 if self.qosApplyMode == ofdpa.OFDPA_QOS_MODE_PCP:
-                    apy_actions = [ ofp.action.set_field(ofp.oxm.vlan_pcp(value=i)),
+                    apy_actions = [ ofp.action.set_field(ofp.oxm.vlan_pcp(value=pcpvalue)),
                                    ofp.action.set_field(ofp.oxm.vlan_dei(value=0))    
                     ]
                 elif self.qosApplyMode == ofdpa.OFDPA_QOS_MODE_DSCP:
@@ -933,6 +938,7 @@ class PW():
                     '''
                     Add mpls label trust table entry
                     '''
+                    expvalue = self.Qos.exp2tc[i]
                     table_id = ofdpa.OFDPA_FLOW_TABLE_ID_MPLS_LABEL_TRUST
                     match = ofp.match([
                         ofp.oxm.mpls_tp_qos_index(value = 1),
@@ -942,9 +948,9 @@ class PW():
                     '''
                     apply actions
                     '''
-                    traffic_class = i 
-                    apy_actions = [ofp.action.set_field(ofp.oxm.mpls_tp_color(value = 1)) ,
-                        ofp.action.set_field(ofp.oxm.mpls_tp_traffic_class(value = traffic_class)) ,   
+                    
+                    apy_actions = [ofp.action.set_field(ofp.oxm.mpls_tp_color(value = 0)) ,
+                        ofp.action.set_field(ofp.oxm.mpls_tp_traffic_class(value = expvalue)) ,   
                     ]
                     instructions=[
                         ofp.instruction.goto_table(ofdpa.OFDPA_FLOW_TABLE_ID_MPLS_TYPE),
@@ -1103,7 +1109,8 @@ class PW():
             self.qosApplyMode == ofdpa.OFDPA_QOS_MODE_DSCP:
             for i in range(8):
                 traffic_class = i 
-                msg = ofp.message.sptn_mpls_vpn_label_remark_action_add(index=1,traffic_class=traffic_class,color=1,mpls_tc=Qos.local2exp[i],vlan_pcp=1,vlan_dei=1)
+                tc2exp_value = self.Qos.tc2exp[i]
+                msg = ofp.message.sptn_mpls_vpn_label_remark_action_add(index=1,traffic_class=tc2exp_value,color=0,mpls_tc=traffic_class,vlan_pcp=0,vlan_dei=0)
                 self.uni2nni.append(msg)   
             
             
@@ -1309,11 +1316,12 @@ class PW():
                 '''
                 Add mpls pcp trust table entry
                 '''
+                pcp2tc_value = self.Qos.pcp2tc[i]
                 table_id = ofdpa.OFDPA_FLOW_TABLE_ID_MPLS_PCP_TRUST
                 match = ofp.match([
-                    ofp.oxm.mpls_tp_qos_index(value = 1),
+                    ofp.oxm.mpls_tp_qos_index(value = self.Qos.index),
                     ofp.oxm.vlan_vid_masked(value=0x1000,value_mask=0x1000),
-                    ofp.oxm.vlan_pcp(value=i),
+                    ofp.oxm.vlan_pcp(value=pcp2tc_value),
                     ofp.oxm.vlan_dei(value=0)            
                 ])
                 
@@ -1435,10 +1443,15 @@ class PW():
         Add vlan table entry
         '''
         table_id = ofdpa.OFDPA_FLOW_TABLE_ID_VLAN
-        match = ofp.match([
-            ofp.oxm.in_port(self.uniPort),
-            ofp.oxm.vlan_vid(self.uniVlan[0]),
-        ])
+        
+        if ACMode == 'Port':
+		    match = ofp.match([
+                ofp.oxm.in_port(self.uniPort),
+                ofp.oxm.vlan_vid_masked(value = self.uniVlan[0],value_mask = 0)])
+        else:
+			match = ofp.match([
+                ofp.oxm.in_port(self.uniPort),
+                ofp.oxm.vlan_vid(self.uniVlan[0])])
         
         '''
         apply actions
@@ -1847,7 +1860,7 @@ class SWAP():
         if self.qosApplyMode == ofdpa.OFDPA_QOS_MODE_EXP:
             for i in range(8):
                 traffic_class = i + 1
-                msg = ofp.message.sptn_mpls_vpn_label_remark_action_add(index=1,traffic_class=traffic_class,color=1,mpls_tc=Qos.local2exp[i],vlan_pcp=1,vlan_dei=1)
+                msg = ofp.message.sptn_mpls_vpn_label_remark_action_add(index=1,traffic_class=traffic_class,color=1,mpls_tc=Qos.local2exp[i],vlan_pcp=1,vlan_dei=0)
                 self.uni2nni.append(msg)  
 
 
@@ -2228,11 +2241,11 @@ class DEVICE():
         return new_tunnel
 
     def addPw(self,pwIndex,inLabel,outLabel,uniPort,tunnel, uniVlan = [],ivid = [],\
-                Qos = None,protMode=0,inLabelPro=None,outLabelPro=None,tunnelPro=None):
+                Qos = None,protMode=0,inLabelPro=None,outLabelPro=None,tunnelPro=None, ACMode=None):
     
         new_pw = PW(pwIndex = pwIndex ,inLabel = inLabel,outLabel = outLabel,uniPort = uniPort,\
                      uniVlan = uniVlan, tunnel = tunnel,ivid = ivid, Qos = Qos,protMode=protMode,inLabelPro=inLabelPro,\
-                     outLabelPro=outLabelPro,tunnelPro=tunnelPro,res=self.res_pool)
+                     outLabelPro=outLabelPro,tunnelPro=tunnelPro,res=self.res_pool, ACMode=ACMode)
         (uni2nni , nni2uni) = new_pw.get_flow_db()
         for msg in uni2nni:
             self.sendMessage(msg)
@@ -4905,14 +4918,17 @@ class QosPCP(advanced_tests.AdvancedProtocol):
         
 
         # qos for pw 
-        local2exp = [0,7,6,5,4,3,2,1]
+        pcp2tc = [0,7,6,5,4,3,2,1]
+        tc2pcp = [0,6,5,4,3,2,1,7]
+        exp2tc = [6,4,3,2,1,7,0,5]
+        tc2exp = [0,6,5,4,3,2,1,7]
         remarkPattern = ofdpa.OFDPA_QOS_MODE_PCP
-        pwQos = QoS(index = 1,local2exp=local2exp,remarkPattern=remarkPattern)
+        pwQos = QoS(index = 1,pcp2tc=pcp2tc, tc2pcp=tc2pcp, tc2exp=tc2exp, exp2tc=exp2tc,remarkPattern=remarkPattern)
         
         # qos for lsp
-        local2exp = [0,1,2,3,4,5,6,7]
+        tc2exp = [0,1,2,3,4,5,6,7]
         remarkPattern = ofdpa.OFDPA_QOS_MODE_PCP
-        lspQos = QoS(index = 2,local2exp=local2exp,remarkPattern=remarkPattern,level=ofdpa.OFDPA_QOS_LEVEL_LSP)
+        lspQos = QoS(index = 2,tc2exp=tc2exp,remarkPattern=remarkPattern,level=ofdpa.OFDPA_QOS_LEVEL_LSP)
 
         self.pe1Sel = 1
         if self.pe1 != None and self.pe1Sel == 1:
