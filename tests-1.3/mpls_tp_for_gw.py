@@ -3380,7 +3380,7 @@ class LspProt(advanced_tests.AdvancedDataPlane):
             print('deleteLsp\t\t:'+ str(rc) + '(' + info + ')')
             
                         
-class SptnLspProtUnderStc(advanced_tests.AdvancedDataPlane):
+class LspProtUnderStc(advanced_tests.AdvancedDataPlane):
     """
     vpws test case for lsp  permanent protection 
     """      

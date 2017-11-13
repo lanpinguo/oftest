@@ -26,7 +26,7 @@ import tstc_dp_profiles as STC_DP
 
 
         
-class BasicDemo(advanced_tests.AdvancedDataPlane):
+class BasicDemo(base_tests.DataPlaneOnly):
     """
     dut test 
     """      
@@ -82,7 +82,7 @@ class BasicDemo(advanced_tests.AdvancedDataPlane):
 
    
  
-class BasicCheckMode(advanced_tests.AdvancedDataPlane):
+class BasicCheckMode(base_tests.DataPlaneOnly):
     """
     dut test 
     """      
@@ -126,7 +126,7 @@ class BasicCheckMode(advanced_tests.AdvancedDataPlane):
         
  
  
-class BasicUpdate(advanced_tests.AdvancedDataPlane):
+class BasicUpdate(base_tests.DataPlaneOnly):
     """
     dut test 
     """      
