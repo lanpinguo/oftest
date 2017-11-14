@@ -2121,6 +2121,9 @@ class DEVICE():
     def getPortMac(self,portNo):
         return self.agt.getPortMac(portNo)
 
+    def getPortName(self,portNo):
+        return self.agt.getPortName(portNo)
+        
     def updateDevConnTopology(self,localPort,remotePort,remoteSysName):
             self.connTopo[localPort] = '%s@%s' % (remotePort,remoteSysName)
 
@@ -3051,7 +3054,33 @@ class DEVICE():
             print("error type")
             return([-1,-1],[-1,-1,-1,-1],[-1,-1,-1,-1,-1,-1,-1],-1,-1,-1)
             
+    def enablePort(self,portNo):
+        portConfig = netconf.PHY_PORT(self.getPortName(portNo),True)
+        if self.agt.netconf.connected() == False:
+            (rc , info) = self.agt.netconf.connect()
+            if rc != 0:
+                print(info)
+                return -1
 
+        (rc , info) = self.agt.netconf.config(portConfig.getConfig())
+        if rc != 0:
+            print(info)
+            return -1
+            
+    def disablePort(self,portNo):
+        portConfig = netconf.PHY_PORT(self.getPortName(portNo),False)
+        if self.agt.netconf.connected() == False:
+            (rc , info) = self.agt.netconf.connect()
+            if rc != 0:
+                print(info)
+                return -1
+
+        (rc , info) = self.agt.netconf.config(portConfig.getConfig())
+        if rc != 0:
+            print(info)
+            return -1
+
+            
 class DeviceOnline(advanced_tests.AdvancedProtocol):
     """
     vpws test case for lsp  permanent protection 
@@ -5131,9 +5160,14 @@ class LspProtUnderStc(advanced_tests.AdvancedDataPlane):
         self.pe2Config = config["device_map"]["pe2"]  
         self.dp = STC_DP.DpProfile_MultiStream(dataplane = self.dataplane)
         self.pe1UniPort = 3
-        self.pe2UniPort = 13
+        self.pe1NniPort_w = 1
+        self.pe1NniPort_p = 2
         
-
+        self.pe2UniPort = 13
+        self.pe2NniPort_w = 9
+        self.pe2NniPort_p = 11
+        
+        
         print("\r\n")
         print(hex(self.pe1Config['DPID']))
         print(hex(self.pe2Config['DPID']))
@@ -5158,11 +5192,35 @@ class LspProtUnderStc(advanced_tests.AdvancedDataPlane):
 
         self.addBasicVpws()
         self.addG8131Mlp()   
-        self.totalCount = self.dp.config( stcProject = self.dataplane.project[0],
-                                          txPort = self.dataplane.ports[self.pe1UniPort],
-                                          rxPort = self.dataplane.ports[self.pe2UniPort])
-        print self.totalCount
-        self.assertEquals((self.totalCount >= 10000), True,'packets lost!! Test Fail!!')
+        self.dp.start( stcProject = self.dataplane.project[0],
+                      portA = self.dataplane.ports[self.pe1UniPort],
+                      portB = self.dataplane.ports[self.pe2UniPort])
+        time.sleep(10)
+        
+        #shutdown pe1 work path port
+        self.pe1.disablePort(self.pe1NniPort_w)
+        
+        time.sleep(10)
+        #restore pe1 work path port
+        self.pe1.enablePort(self.pe1NniPort_w)
+        time.sleep(5)
+        
+        self.dp.stop()
+        
+        (self.portA_Rx,self.portA_Tx,self.portB_Rx,self.portB_Tx) = self.dp.getResult()
+        print("Port-A Rx_Frames: %d , Tx_Frames : %d " % (self.portA_Rx,self.portA_Tx))
+        print("Port-B Rx_Frames: %d , Tx_Frames : %d " % (self.portB_Rx,self.portB_Tx))
+        
+        switch_time_a2b = (self.portA_Tx - self.portB_Rx)*0.01 #switch over time , unit: ms
+        switch_time_b2a = (self.portB_Tx - self.portA_Rx)*0.01 #switch over time , unit: ms
+        
+        print("pe1 switch over time from work path to protect path : %f ms") % switch_time_a2b
+        print("pe2 switch over time from work path to protect path : %f ms") % switch_time_b2a
+        
+        #self.assertEquals((self.totalCount >= 10000), True,'packets lost!! Test Fail!!')
+        self.assertEquals((switch_time_a2b < 50), True,'switch over time is out of range!! Test Fail!!')
+        self.assertEquals((switch_time_b2a < 50), True,'switch over time is out of range!! Test Fail!!')
+        
         
         #delete openflow config
         print "delete vpws service"
@@ -5175,12 +5233,12 @@ class LspProtUnderStc(advanced_tests.AdvancedDataPlane):
         uniVlan = [10]
         
         uniPort = self.pe1UniPort 
-        nniPort_w = 1
-        nniPort_p = 2
+        nniPort_w = self.pe1NniPort_w
+        nniPort_p = self.pe1NniPort_p
 
         pe2UniPort = self.pe2UniPort  
-        pe2NniPort_w = 9
-        pe2NniPort_p = 11
+        pe2NniPort_w = self.pe2NniPort_w
+        pe2NniPort_p = self.pe2NniPort_p
         
         nniVlan = 100
         pe1PortMac_w = self.pe1.getPortMac(nniPort_w) 

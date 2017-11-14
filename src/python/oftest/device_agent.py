@@ -92,7 +92,15 @@ class DeviceAgent(Thread):
             if pd.port_no == port:
                 return pd.hw_addr
         return []
-    
+
+    def getPortName(self, port) :
+        #if port > len(self.port_desc) or port < 1:
+        #    return []
+        for pd in self.port_desc:
+            if pd.port_no == port:
+                return pd.name
+        return ''
+        
     def updateSwitchSocket(self,switch_socket,switch_addr):
         
         with self.tx_lock,self.xid_cv:

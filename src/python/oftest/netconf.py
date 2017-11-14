@@ -139,6 +139,18 @@ CONF_MOD_MLP_HEAD_END = """
 </config>       
 """
 
+CONF_MOD_PHY_PORT = """        
+<config xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
+    <interfaces xmlns="urn:ietf:params:xml:ns:yang:ietf-interfaces">
+        <interface>
+            <name>%s</name>
+            <enabled>%s</enabled>
+        </interface>
+    </interfaces>
+</config>        
+"""
+
+
         
 class Netconf():
     """
@@ -179,8 +191,36 @@ class Netconf():
         else:
             return self.mng.connected
 
- 
+class PHY_PORT():
+    """
+    physical port object
+    """
+    def __init__(self,portName,enable = True):
+        self.name = portName
+        if enable:
+            self.enabled = 'true'
+        else:
+            self.enabled = 'false'
+        
+    def enable(self):
+        self.enabled = 'true'
+        self.strConf = CONF_MOD_PHY_PORT % (self.name,self.enabled)
+        return self.strConf
+        
+        
+    def disable(self):
+        self.enabled = 'false'
+        self.strConf = CONF_MOD_PHY_PORT % (self.name,self.enabled)
+        return self.strConf
+        
+    def getConfig(self):
+        self.strConf = CONF_MOD_PHY_PORT % (self.name,self.enabled)
+        return self.strConf
 
+        
+        
+        
+        
 class MEG():
     """
     meg root class

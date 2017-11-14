@@ -134,23 +134,28 @@ class STC(object):
     
     def dutUpdateSystem(self,dutName,localIp,fileName = None):
         self.remote.root.dutUpdateSystem(dutName,localIp,fileName)
+        self.logger.info("dutUpdateSystem")
         return self.dutGetResult()
         
     def dutGetVersion(self,dutName):
         self.remote.root.dutGetVersion(dutName)
+        self.logger.info("dutGetVersion")
         return self.dutGetResult()        
     
     def dutBoot(self,dutName):
         self.remote.root.dutBoot(dutName)
+        self.logger.info("dutBoot")        
         return self.dutGetResult()  
 
 
     def dutGetNewestFile(self,dutName):
         self.remote.root.dutGetNewestFile(dutName)
+        self.logger.info("dutGetNewestFile") 
         return self.dutGetResult()          
         
     def dutGetCurrentMode(self,dutName):
         self.remote.root.dutGetCurrentMode(dutName)
+        self.logger.info("dutGetCurrentMode") 
         return self.dutGetResult()          
 
         
