@@ -401,6 +401,7 @@ class ControllerMc(Thread):
         try:
             for id,s in self.device_agents :
                 s.shutdown()
+                s.join()
         except:
             self.logger.info("Ignoring switch soc shutdown error")
 
@@ -409,7 +410,7 @@ class ControllerMc(Thread):
             self.listen_socket.shutdown(socket.SHUT_RDWR)
         except:
             self.logger.info("Ignoring listen soc shutdown error")
-        self.listen_socket = None
+        #self.listen_socket = None
 
         # Wakeup condition variables on which controller may be wait
         with self.xid_cv:

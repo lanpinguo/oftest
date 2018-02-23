@@ -13,7 +13,7 @@ remote_port_map = {
 }
 
 protocal_port_map = {
-    0 : "eth1",
+    0 : "ens38",
 }
 
 

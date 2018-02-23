@@ -219,8 +219,9 @@ class DeviceAgent(Thread):
             self.switch_socket.shutdown(socket.SHUT_RDWR)
         except:
             self.logger.info("Ignoring switch soc shutdown error")
-        self.switch_socket = None
-
+            
+        #the last run loop may continue use the switch socket , so do not override here
+        #self.switch_socket = None 
         # Wakeup condition variables on which controller may be wait
         with self.xid_cv:
             self.xid_cv.notifyAll()
